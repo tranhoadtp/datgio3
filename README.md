@@ -3,7 +3,7 @@
 Demo quản lý giường nội trú theo timeline, QR, realtime đa thiết bị và quản trị danh mục Phòng/Giường.
 
 ## Live demo
-https://bqfphelckjvrwxdvekkl.supabase.co/functions/v1/bedflow
+https://bqfphelckjvrwxdvekkl.supabase.co/functions/v1/giuong
 
 ## Source
 https://github.com/tranhoadtp/datgio3
