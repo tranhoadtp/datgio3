@@ -1,20 +1,46 @@
 # BVCL BedFlow Demo
 
-Demo PWA quản lý giường nội trú theo timeline.
+Demo quản lý giường nội trú theo timeline, QR và realtime đa thiết bị.
+
+## Live demo
+https://bqfphelckjvrwxdvekkl.supabase.co/functions/v1/bedflow
+
+## Source
+https://github.com/tranhoadtp/datgio3
+
+## Kiến trúc v0.2
+- Frontend: HTML/CSS/JavaScript responsive, mobile-first.
+- Host live: Supabase Edge Function.
+- Database: Supabase PostgreSQL.
+- Realtime: Supabase Realtime / Postgres Changes.
+- QR: camera trình duyệt + html5-qrcode.
+- Giao dịch nghiệp vụ: PostgreSQL RPC `assign_bed`, `transfer_bed`, `end_bed_stay`.
+- Audit: bảng `audit_logs`.
+- Chống thao tác đồng thời: advisory transaction lock theo từng giường.
+- Source code: GitHub.
 
 ## Chức năng hiện có
-- Sơ đồ 20 giường / 4 phòng.
-- Dữ liệu giả lập, gồm tình huống A/B/C/D có nằm ghép một phần ngày.
+- 1 khoa, 4 phòng, 20 giường.
+- 25 bệnh nhân giả lập.
+- Testcase A/B/C/D có nằm ghép một phần ngày.
 - Timeline 24 giờ tự phân đoạn 1 BN / ghép 2 / ghép >=3.
-- Xếp BN, chuyển giường, kết thúc lượt giường.
-- QR scanner qua camera trình duyệt (mã mẫu: `BED:G01` ... `BED:G20`).
-- PWA / Add to Home Screen.
+- Xếp bệnh nhân vào giường.
+- Chuyển giường.
+- Kết thúc lượt giường.
+- Giới hạn tối đa số BN/giường.
+- Realtime đa thiết bị.
+- QR scanner qua camera trình duyệt.
+- QR thật cho từng giường (BED:G01 ... BED:G20).
 - Audit log.
-- Đồng bộ realtime giữa các tab/cửa sổ cùng trình duyệt bằng BroadcastChannel.
 
-## Lưu ý
-Bản v0.1 dùng localStorage để demo UI/logic, chưa phải realtime nhiều thiết bị. Không dùng dữ liệu bệnh nhân thật.
+## An toàn
+Bản này chỉ dùng dữ liệu giả lập. Quyền public được mở để thuận tiện cho demo nên KHÔNG được nhập dữ liệu bệnh nhân thật.
 
-## Roadmap
-v0.2: backend cloud free + realtime đa thiết bị + phân quyền.
-v0.3: correction workflow + department timeline.
+## Quy tắc dữ liệu cốt lõi
+Timeline thực tế là nguồn dữ liệu gốc. Hệ thống lưu:
+`người bệnh – giường – start_at – end_at`.
+
+Nằm ghép được suy ra từ các khoảng thời gian giao nhau; không nhập “50%” thủ công.
+
+## Version
+BVCL BedFlow v0.2
