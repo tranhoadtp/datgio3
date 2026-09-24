@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#0f766e"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="BedFlow"/>
+  <link rel="manifest" href="./manifest.webmanifest"/>
+  <title>BVCL BedFlow Demo</title>
+  <style>
+    :root{--bg:#f4f7f8;--card:#fff;--ink:#123;--muted:#64748b;--teal:#0f766e;--line:#dbe4e8;--green:#16a34a;--blue:#2563eb;--yellow:#ca8a04;--red:#dc2626;--purple:#7c3aed}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    button,input,select{font:inherit} button{cursor:pointer}.wrap{max-width:1180px;margin:auto;padding:16px}
+    header{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line)}
+    .head{max-width:1180px;margin:auto;padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between}
+    .brand{display:flex;gap:10px;align-items:center}.logo{width:40px;height:40px;border-radius:12px;background:var(--teal);color:#fff;display:grid;place-items:center;font-size:22px}
+    .brand h1{font-size:17px;margin:0}.brand small{color:var(--muted)} .actions{display:flex;gap:8px;align-items:center}
+    .pill{border-radius:999px;padding:7px 10px;font-size:12px;font-weight:700;border:1px solid var(--line);background:#fff}
+    .live{color:var(--green)}.btn{border:0;border-radius:10px;padding:10px 13px;font-weight:700;background:#e7eef2;color:#123}
+    .btn.primary{background:var(--teal);color:#fff}.btn.danger{background:#fee2e2;color:#991b1b}.btn.ghost{background:#fff;border:1px solid var(--line)}
+    .hero{display:flex;gap:12px;align-items:end;justify-content:space-between;margin:12px 0}.hero h2{margin:0;font-size:24px}.hero p{margin:4px 0 0;color:var(--muted)}
+    .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0}.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}.stat b{font-size:24px}.stat span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.toolbar input,.toolbar select{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;min-width:150px}
+    .room{background:#fff;border:1px solid var(--line);border-radius:16px;margin:12px 0;overflow:hidden}.room-title{padding:11px 14px;border-bottom:1px solid var(--line);font-weight:800;display:flex;justify-content:space-between}
+    .beds{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:12px}.bed{min-height:116px;border:1px solid var(--line);border-radius:13px;padding:10px;background:#fff;text-align:left;position:relative}
+    .bed:hover{box-shadow:0 3px 14px #0f172a15}.bed .code{font-weight:900;font-size:16px}.bed .state{font-size:12px;font-weight:800;margin-top:4px}.bed .pts{font-size:12px;margin-top:8px;color:#334155;line-height:1.5}
+    .bed.available{border-left:5px solid var(--green)}.bed.single{border-left:5px solid var(--blue)}.bed.shared2{border-left:5px solid var(--yellow);background:#fffbea}.bed.shared3{border-left:5px solid var(--red);background:#fff6f6}
+    .timeline{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}.trow{display:grid;grid-template-columns:90px 1fr;border-bottom:1px solid var(--line)}.trow:last-child{border:0}.tlabel{padding:9px;font-size:12px;font-weight:800;border-right:1px solid var(--line)}.track{position:relative;height:42px;background:repeating-linear-gradient(to right,#fff 0,#fff calc(8.333% - 1px),#eef2f5 calc(8.333% - 1px),#eef2f5 8.333%)}
+    .seg{position:absolute;top:8px;height:26px;border-radius:7px;color:#fff;font-size:11px;padding:5px 6px;overflow:hidden;white-space:nowrap}.seg.one{background:var(--blue)}.seg.two{background:var(--yellow)}.seg.three{background:var(--red)}
+    dialog{border:0;border-radius:18px;padding:0;max-width:720px;width:min(94vw,720px);box-shadow:0 25px 80px #0f172a55}dialog::backdrop{background:#0f172a77}.modal{padding:18px}.modal-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.modal h3{margin:0}.x{border:0;background:#eef2f5;border-radius:999px;width:34px;height:34px}
+    .list{display:grid;gap:8px;margin:12px 0}.item{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center}.muted{color:var(--muted);font-size:12px}
+    .form{display:grid;gap:10px}.form input,.form select,.form textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;background:#fff}
+    .tabs{display:flex;gap:6px;overflow:auto;padding-bottom:4px}.tab{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px}.tab.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+    .panel{display:none}.panel.active{display:block}.notice{border:1px solid #fde68a;background:#fffbeb;color:#854d0e;padding:10px 12px;border-radius:12px;font-size:13px;margin:10px 0}
+    #reader{width:100%;min-height:260px;border-radius:12px;overflow:hidden;background:#111}.footer{color:var(--muted);font-size:12px;padding:24px 0;text-align:center}
+    @media(max-width:850px){.stats{grid-template-columns:repeat(2,1fr)}.beds{grid-template-columns:repeat(2,1fr)}.hero{align-items:start;flex-direction:column}.desktop-only{display:none}}
+    @media(max-width:480px){.wrap{padding:10px}.head{padding:8px 10px}.brand small{display:none}.beds{gap:8px;padding:8px}.bed{min-height:108px}.stats{gap:8px}.stat{padding:11px}.stat b{font-size:21px}}
+  </style>
+</head>
+<body>
+<header><div class="head">
+  <div class="brand"><div class="logo">🛏</div><div><h1>BVCL BedFlow <span class="muted">Demo</span></h1><small>Quản lý giường nội trú theo timeline</small></div></div>
+  <div class="actions"><span class="pill live" id="liveBadge">● REALTIME</span><button class="btn ghost" id="scanBtn">📷 Quét QR</button></div>
+</div></header>
+<main class="wrap">
+  <section class="hero"><div><h2>Khoa Nội Tổng hợp</h2><p>Dữ liệu giả lập • 24/09/2026 • không dùng cho thanh toán</p></div>
+    <div class="tabs"><button class="tab active" data-tab="board">Sơ đồ giường</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="audit">Nhật ký</button></div>
+  </section>
+
+  <section id="board" class="panel active">
+    <div class="stats" id="stats"></div>
+    <div class="toolbar"><input id="search" placeholder="Tìm BN / giường..."/><select id="filter"><option value="all">Tất cả</option><option value="available">Giường trống</option><option value="single">1 BN</option><option value="shared2">Ghép 2</option><option value="shared3">Ghép ≥3</option></select><button class="btn" id="resetBtn">↻ Reset demo</button></div>
+    <div id="rooms"></div>
+  </section>
+
+  <section id="timeline" class="panel">
+    <div class="notice"><b>Nguyên tắc:</b> timeline thực tế là nguồn dữ liệu gốc. Hệ thống tự suy ra các đoạn 1 BN / ghép 2 / ghép ≥3; không nhập “50%” thủ công.</div>
+    <div class="timeline" id="timelineView"></div>
+  </section>
+
+  <section id="audit" class="panel">
+    <div class="room"><div class="room-title"><span>Nhật ký thao tác</span><span class="muted">Audit demo</span></div><div class="list" id="auditList" style="padding:12px"></div></div>
+  </section>
+
+  <div class="footer">BVCL BedFlow v0.1 • GitHub Pages demo • Dữ liệu giả lập</div>
+</main>
+
+<dialog id="bedDialog"><div class="modal"><div class="modal-head"><div><h3 id="bedTitle"></h3><div class="muted" id="bedSub"></div></div><button class="x" onclick="bedDialog.close()">×</button></div><div id="bedBody"></div></div></dialog>
+<dialog id="scanDialog"><div class="modal"><div class="modal-head"><div><h3>Quét QR giường</h3><div class="muted">QR mẫu: BED:G01, BED:G02...</div></div><button class="x" onclick="closeScanner()">×</button></div><div id="reader"></div><div class="form" style="margin-top:12px"><input id="manualBed" placeholder="Nhập mã giường, ví dụ G01"/><button class="btn primary" id="manualOpen">Mở giường</button></div></div></dialog>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+const KEY='bvcl-bedflow-v01';
+const CH='bvcl-bedflow-live';
+const channel=('BroadcastChannel' in window)?new BroadcastChannel(CH):null;
+const nowISO=()=>new Date().toISOString();
+const names=['Nguyễn Văn An','Trần Minh Bình','Lê Thị Chi','Phạm Quốc Dũng','Võ Thanh Em','Nguyễn Hồng Giang','Bùi Minh Hải','Đặng Thị Hạnh','Trương Quốc Khang','Lâm Mỹ Lan','Phan Minh Nam','Hồ Thị Oanh','Đỗ Quốc Phúc','Mai Thị Quyên','Tạ Minh Sơn','Cao Thị Thư','Lý Quốc Việt','Ngô Hồng Yến','Trần Anh Tuấn','Nguyễn Bảo Trâm','Phạm Gia Huy','Võ Minh Khôi','Bùi Thảo My','Đặng Quốc Bảo','Lê Ngọc Anh'];
+const rooms=['P301','P302','P303','P304'];
+const beds=Array.from({length:20},(_,i)=>({id:'G'+String(i+1).padStart(2,'0'),room:rooms[Math.floor(i/5)]}));
+function seed(){
+  const day='2026-09-24T';
+  const patients=names.map((name,i)=>({id:'P'+String(i+1).padStart(3,'0'),name,code:'BN'+String(1001+i)}));
+  const stays=[
+    {id:'S1',patientId:'P001',bedId:'G01',start:day+'11:00:00+07:00',end:day+'22:00:00+07:00'},
+    {id:'S2',patientId:'P002',bedId:'G02',start:day+'08:00:00+07:00',end:day+'16:00:00+07:00'},
+    {id:'S3',patientId:'P003',bedId:'G01',start:day+'16:00:00+07:00',end:day+'22:00:00+07:00'},
+    {id:'S4',patientId:'P004',bedId:'G02',start:day+'11:00:00+07:00',end:day+'22:00:00+07:00'},
+    {id:'S5',patientId:'P005',bedId:'G03',start:day+'07:30:00+07:00',end:null},
+    {id:'S6',patientId:'P006',bedId:'G04',start:day+'09:10:00+07:00',end:null},
+    {id:'S7',patientId:'P007',bedId:'G04',start:day+'12:20:00+07:00',end:null},
+    {id:'S8',patientId:'P008',bedId:'G06',start:day+'06:45:00+07:00',end:null},
+    {id:'S9',patientId:'P009',bedId:'G07',start:day+'10:00:00+07:00',end:null},
+    {id:'S10',patientId:'P010',bedId:'G07',start:day+'13:00:00+07:00',end:null},
+    {id:'S11',patientId:'P011',bedId:'G07',start:day+'14:00:00+07:00',end:null},
+    {id:'S12',patientId:'P012',bedId:'G09',start:day+'08:15:00+07:00',end:null},
+    {id:'S13',patientId:'P013',bedId:'G11',start:day+'07:50:00+07:00',end:null},
+    {id:'S14',patientId:'P014',bedId:'G12',start:day+'08:05:00+07:00',end:null},
+    {id:'S15',patientId:'P015',bedId:'G14',start:day+'09:45:00+07:00',end:null},
+    {id:'S16',patientId:'P016',bedId:'G16',start:day+'10:25:00+07:00',end:null},
+    {id:'S17',patientId:'P017',bedId:'G18',start:day+'11:05:00+07:00',end:null},
+    {id:'S18',patientId:'P018',bedId:'G20',start:day+'12:00:00+07:00',end:null}
+  ];
+  return {patients,stays,audit:[{at:nowISO(),text:'Khởi tạo dữ liệu demo Quy chế v1.1'}],version:1};
+}
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||seed()}catch{return seed()}}
+let db=load(); localStorage.setItem(KEY,JSON.stringify(db));
+function save(msg){db.version=(db.version||0)+1;localStorage.setItem(KEY,JSON.stringify(db));channel?.postMessage({type:'sync',version:db.version});render(); if(msg) toast(msg)}
+channel?.addEventListener('message',e=>{if(e.data?.type==='sync'){db=load();render()}});
+window.addEventListener('storage',e=>{if(e.key===KEY){db=load();render()}});
+function pt(id){return db.patients.find(p=>p.id===id)}
+function activeForBed(id){return db.stays.filter(s=>s.bedId===id&&!s.end)}
+function stateForBed(id){const n=activeForBed(id).length;return n===0?'available':n===1?'single':n===2?'shared2':'shared3'}
+function stateText(s){return s==='available'?'TRỐNG':s==='single'?'1 BN':s==='shared2'?'GHÉP 2':'GHÉP ≥3'}
+function hhmm(iso){if(!iso)return 'hiện tại'; return new Intl.DateTimeFormat('vi-VN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Ho_Chi_Minh'}).format(new Date(iso))}
+function log(text){db.audit.unshift({at:nowISO(),text});db.audit=db.audit.slice(0,60)}
+function renderStats(){const counts={available:0,single:0,shared2:0,shared3:0};beds.forEach(b=>counts[stateForBed(b.id)]++);const census=db.stays.filter(s=>!s.end).length;document.querySelector('#stats').innerHTML=[
+ ['BN hiện tại',census],['Giường trống',counts.available],['1 BN',counts.single],['Ghép 2',counts.shared2],['Ghép ≥3',counts.shared3]
+].map(([a,b])=>'<div class="stat"><b>'+b+'</b><span>'+a+'</span></div>').join('')}
+function renderRooms(){
+ const q=document.querySelector('#search').value.toLowerCase(); const f=document.querySelector('#filter').value; let html='';
+ rooms.forEach(r=>{const rb=beds.filter(b=>b.room===r).filter(b=>{const st=stateForBed(b.id), aps=activeForBed(b.id);const txt=(b.id+' '+aps.map(s=>pt(s.patientId)?.name).join(' ')).toLowerCase();return (f==='all'||f===st)&&(!q||txt.includes(q))});if(!rb.length)return;
+ html+='<div class="room"><div class="room-title"><span>'+r+'</span><span class="muted">'+rb.length+' giường</span></div><div class="beds">';
+ rb.forEach(b=>{const st=stateForBed(b.id),aps=activeForBed(b.id);html+='<button class="bed '+st+'" onclick="openBed(\''+b.id+'\')"><div class="code">'+b.id+'</div><div class="state">'+stateText(st)+'</div><div class="pts">'+(aps.length?aps.map(s=>pt(s.patientId)?.name+' · '+hhmm(s.start)).join('<br>'):'Sẵn sàng tiếp nhận')+'</div></button>'}); html+='</div></div>'});document.querySelector('#rooms').innerHTML=html||'<div class="notice">Không có kết quả phù hợp.</div>'}
+function segmentsForBed(bedId){
+ const dayStart=new Date('2026-09-24T00:00:00+07:00'), dayEnd=new Date('2026-09-25T00:00:00+07:00');
+ const ss=db.stays.filter(s=>s.bedId===bedId).map(s=>({...s,a:Math.max(new Date(s.start),dayStart),z:Math.min(s.end?new Date(s.end):dayEnd,dayEnd)})).filter(s=>s.a<s.z);
+ const points=[dayStart,dayEnd,...ss.flatMap(s=>[s.a,s.z])].sort((a,b)=>a-b).filter((d,i,a)=>i===0||+d!==+a[i-1]); const out=[];
+ for(let i=0;i<points.length-1;i++){const a=points[i],z=points[i+1];const act=ss.filter(s=>s.a<z&&s.z>a);if(act.length)out.push({a,z,n:act.length,names:act.map(s=>pt(s.patientId)?.name)})}
+ return out
+}
+function renderTimeline(){
+ let html='<div class="trow"><div class="tlabel">Giường</div><div style="padding:8px;font-size:11px;color:#64748b;display:flex;justify-content:space-between"><span>00h</span><span>04h</span><span>08h</span><span>12h</span><span>16h</span><span>20h</span><span>24h</span></div></div>';
+ beds.forEach(b=>{const segs=segmentsForBed(b.id);html+='<div class="trow"><div class="tlabel">'+b.id+'<div class="muted">'+b.room+'</div></div><div class="track">';segs.forEach(s=>{const start=(s.a-new Date('2026-09-24T00:00:00+07:00'))/86400000*100,w=(s.z-s.a)/86400000*100,cls=s.n===1?'one':s.n===2?'two':'three';html+='<div class="seg '+cls+'" style="left:'+start+'%;width:'+w+'%" title="'+s.names.join(', ')+'">'+hhmm(s.a.toISOString())+' · '+s.n+' BN</div>'});html+='</div></div>'});document.querySelector('#timelineView').innerHTML=html}
+function renderAudit(){document.querySelector('#auditList').innerHTML=db.audit.map(x=>'<div class="item"><div><b>'+x.text+'</b><div class="muted">'+new Date(x.at).toLocaleString('vi-VN')+'</div></div></div>').join('')}
+function render(){renderStats();renderRooms();renderTimeline();renderAudit()}
+window.openBed=function(id){const b=beds.find(x=>x.id===id),aps=activeForBed(id),st=stateForBed(id);document.querySelector('#bedTitle').textContent=b.room+' – '+b.id;document.querySelector('#bedSub').textContent=stateText(st)+' • cập nhật realtime';let h='<div class="list">'+(aps.length?aps.map(s=>'<div class="item"><div><b>'+pt(s.patientId).name+'</b><div class="muted">'+pt(s.patientId).code+' • từ '+hhmm(s.start)+'</div></div><div><button class="btn" onclick="transferPrompt(\''+s.id+'\')">Chuyển</button> <button class="btn danger" onclick="endStay(\''+s.id+'\')">Kết thúc</button></div></div>').join(''):'<div class="notice">Giường đang trống.</div>')+'</div>';
+ h+='<div class="form"><select id="patientSelect"><option value="">+ Chọn bệnh nhân để xếp vào '+id+'</option>'+db.patients.filter(p=>!db.stays.some(s=>s.patientId===p.id&&!s.end)).map(p=>'<option value="'+p.id+'">'+p.name+' · '+p.code+'</option>').join('')+'</select><button class="btn primary" onclick="assignPatient(\''+id+'\')">Xếp bệnh nhân</button></div>';
+ h+='<div class="notice">QR của giường: <b>BED:'+id+'</b>. Demo không lưu thông tin bệnh nhân trong QR.</div>';document.querySelector('#bedBody').innerHTML=h;bedDialog.showModal()}
+window.assignPatient=function(bedId){const pid=document.querySelector('#patientSelect').value;if(!pid)return;const n=activeForBed(bedId).length;if(n>=1&&!confirm('Giường '+bedId+' đang có '+n+' BN. Tiếp tục sẽ tạo trạng thái ghép. Xác nhận?'))return;const s={id:'S'+Date.now(),patientId:pid,bedId,start:nowISO(),end:null};db.stays.push(s);log('Xếp '+pt(pid).name+' vào '+bedId+(n?' (ghép '+(n+1)+')':''));save('Đã xếp giường');openBed(bedId)}
+window.endStay=function(id){const s=db.stays.find(x=>x.id===id);if(!s)return;s.end=nowISO();log('Kết thúc '+pt(s.patientId).name+' tại '+s.bedId);save('Đã kết thúc lượt giường');openBed(s.bedId)}
+window.transferPrompt=function(id){const s=db.stays.find(x=>x.id===id);const dest=prompt('Chuyển đến giường nào? Ví dụ G05');if(!dest)return;const bid=dest.toUpperCase();if(!beds.some(b=>b.id===bid)){alert('Không tìm thấy '+bid);return}const n=activeForBed(bid).length;if(n&&!confirm(bid+' đang có '+n+' BN. Chuyển vào sẽ tạo nằm ghép. Tiếp tục?'))return;const t=nowISO();s.end=t;db.stays.push({id:'S'+Date.now(),patientId:s.patientId,bedId:bid,start:t,end:null});log('Chuyển '+pt(s.patientId).name+': '+s.bedId+' → '+bid);save('Đã chuyển giường');bedDialog.close();openBed(bid)}
+function toast(t){const el=document.createElement('div');el.textContent=t;el.style='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 14px;border-radius:10px;z-index:99';document.body.appendChild(el);setTimeout(()=>el.remove(),1700)}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab,.panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelector('#'+b.dataset.tab).classList.add('active')});
+document.querySelector('#search').oninput=renderRooms;document.querySelector('#filter').onchange=renderRooms;
+document.querySelector('#resetBtn').onclick=()=>{if(confirm('Khôi phục dữ liệu demo ban đầu?')){db=seed();save('Đã reset demo')}};
+let scanner=null;
+document.querySelector('#scanBtn').onclick=async()=>{scanDialog.showModal();try{scanner=new Html5Qrcode('reader');await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:220,height:220}},txt=>{const m=txt.match(/(?:BED:|\/b\/)(G\d{2})/i);if(m){closeScanner();openBed(m[1].toUpperCase())}})}catch(e){document.querySelector('#reader').innerHTML='<div class="notice">Không mở được camera. Hãy cấp quyền camera hoặc nhập mã giường thủ công.</div>'}};
+window.closeScanner=async()=>{try{if(scanner?.isScanning)await scanner.stop()}catch{}scanner=null;scanDialog.close()};
+document.querySelector('#manualOpen').onclick=()=>{const id=document.querySelector('#manualBed').value.trim().toUpperCase();if(beds.some(b=>b.id===id)){closeScanner();openBed(id)}else alert('Không tìm thấy giường')};
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+render();
+</script>
+</body></html>
