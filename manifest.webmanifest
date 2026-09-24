@@ -1,0 +1,10 @@
+{
+  "name":"BVCL BedFlow Demo",
+  "short_name":"BedFlow",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#f4f7f8",
+  "theme_color":"#0f766e",
+  "description":"Demo quản lý giường nội trú theo timeline, QR và realtime cục bộ."
+}
