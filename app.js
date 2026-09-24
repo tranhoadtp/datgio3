@@ -7,7 +7,8 @@ const DEMO_DAY = '2026-09-24';
 let beds = [];
 let rooms = [];
 let roomRecords = [];
-let departmentId = null;
+let departments = [];
+let selectedDepartmentId = localStorage.getItem('bedflow.selectedDepartmentId') || null;
 let db = { patients: [], stays: [], audit: [] };
 let realtimeChannel = null;
 let loading = false;
@@ -47,6 +48,19 @@ function stateText(state) {
 function bedByCode(code) {
   return beds.find(b => b.id === code);
 }
+function bedByQR(value) {
+  const raw=String(value||'').trim();
+  const exact=beds.find(b => String(b.qr).toUpperCase()===raw.toUpperCase());
+  if(exact) return exact;
+  if(/^BED:/i.test(raw)) return bedByCode(raw.slice(4).trim().toUpperCase());
+  return null;
+}
+function currentDepartment(){
+  return departments.find(d=>d.uuid===selectedDepartmentId) || departments[0] || null;
+}
+function departmentName(id){
+  return departments.find(d=>d.uuid===id)?.name || '—';
+}
 
 function toast(text) {
   const el = document.createElement('div');
@@ -80,7 +94,7 @@ async function loadRemote(showLoading = true) {
     const [deptRes, roomRes, bedRes, patientRes, admRes, stayRes, auditRes] = await Promise.all([
       sb.from('departments').select('id,code,name').order('code'),
       sb.from('rooms').select('id,department_id,code,name').order('code'),
-      sb.from('beds').select('id,room_id,code,qr_token,max_occupancy,is_active,rooms(code,name)').order('code'),
+      sb.from('beds').select('id,room_id,code,qr_token,max_occupancy,is_active,rooms(department_id,code,name)').order('code'),
       sb.from('patients').select('id,patient_code,full_name').order('patient_code'),
       sb.from('admissions').select('id,patient_id,admission_code,status'),
       sb.from('bed_stays').select('id,admission_id,bed_id,start_at,end_at,status').eq('status', 'valid').order('start_at'),
@@ -93,12 +107,17 @@ async function loadRemote(showLoading = true) {
 
     if (errors.length) throw errors[0];
 
-    departmentId = deptRes.data?.[0]?.id || null;
+    departments = (deptRes.data || []).map(d => ({uuid:d.id,code:d.code,name:d.name}));
+    if(!selectedDepartmentId || !departments.some(d=>d.uuid===selectedDepartmentId)){
+      selectedDepartmentId = departments[0]?.uuid || null;
+      if(selectedDepartmentId) localStorage.setItem('bedflow.selectedDepartmentId',selectedDepartmentId);
+    }
     roomRecords = (roomRes.data || []).map(r => ({ uuid:r.id, departmentId:r.department_id, code:r.code, name:r.name }));
     beds = (bedRes.data || []).map(b => ({
       uuid: b.id,
       id: b.code,
       roomUuid: b.room_id,
+      departmentId: b.rooms?.department_id || roomRecords.find(r=>r.uuid===b.room_id)?.departmentId || null,
       room: b.rooms?.code || '?',
       roomName: b.rooms?.name || '',
       qr: b.qr_token,
@@ -106,7 +125,7 @@ async function loadRemote(showLoading = true) {
       active: b.is_active
     }));
 
-    rooms = roomRecords.map(r => r.code);
+    rooms = roomRecords.filter(r=>r.departmentId===selectedDepartmentId).map(r => r.code);
 
     const admByPatient = new Map((admRes.data || []).map(a => [a.patient_id, a]));
     const admById = new Map((admRes.data || []).map(a => [a.id, a]));
@@ -153,10 +172,28 @@ async function loadRemote(showLoading = true) {
   }
 }
 
+function renderDepartmentSelector(){
+  const sel=document.querySelector('#departmentSelect');
+  const title=document.querySelector('#wardTitle');
+  if(!sel||!title)return;
+  sel.innerHTML=departments.map(d=>'<option value="'+d.uuid+'">'+esc(d.code)+' · '+esc(d.name)+'</option>').join('');
+  if(selectedDepartmentId) sel.value=selectedDepartmentId;
+  const d=currentDepartment();
+  title.textContent=d?d.name:'Chưa có khoa';
+  sel.onchange=()=>{
+    selectedDepartmentId=sel.value;
+    localStorage.setItem('bedflow.selectedDepartmentId',selectedDepartmentId);
+    rooms=roomRecords.filter(r=>r.departmentId===selectedDepartmentId).map(r=>r.code);
+    render();
+  };
+}
+
 function renderStats() {
   const counts = { available: 0, single: 0, shared2: 0, shared3: 0 };
-  beds.filter(b => b.active).forEach(b => counts[stateForBed(b.id)]++);
-  const census = db.stays.filter(s => !s.end).length;
+  const deptBeds=beds.filter(b => b.active && b.departmentId===selectedDepartmentId);
+  deptBeds.forEach(b => counts[stateForBed(b.id)]++);
+  const bedIds=new Set(deptBeds.map(b=>b.id));
+  const census = db.stays.filter(s => !s.end && bedIds.has(s.bedId)).length;
 
   document.querySelector('#stats').innerHTML = [
     ['BN hiện tại', census],
@@ -175,7 +212,7 @@ function renderRooms() {
   let html = '';
 
   rooms.forEach(roomCode => {
-    const roomBeds = beds.filter(b => b.active && b.room === roomCode).filter(b => {
+    const roomBeds = beds.filter(b => b.active && b.departmentId===selectedDepartmentId && b.room === roomCode).filter(b => {
       const state = stateForBed(b.id);
       const active = activeForBed(b.id);
       const text = (b.id + ' ' + active.map(s => pt(s.patientId)?.name).join(' ')).toLowerCase();
@@ -247,7 +284,7 @@ function renderTimeline() {
     '<span>00h</span><span>04h</span><span>08h</span><span>12h</span><span>16h</span><span>20h</span><span>24h</span>' +
     '</div></div>';
 
-  beds.filter(b => b.active).forEach(b => {
+  beds.filter(b => b.active && b.departmentId===selectedDepartmentId).forEach(b => {
     const segs = segmentsForBed(b.id);
     html += '<div class="trow"><div class="tlabel">' + b.id + '<div class="muted">' + b.room + '</div></div><div class="track">';
 
@@ -271,10 +308,14 @@ function auditText(item) {
     'bed_stay.started': 'Xếp bệnh nhân vào giường',
     'bed_stay.ended': 'Kết thúc lượt giường',
     'bed_stay.transferred': 'Chuyển giường',
+    'catalog.department.created': 'Thêm khoa',
+    'catalog.department.updated': 'Cập nhật khoa',
     'catalog.room.created': 'Thêm phòng',
     'catalog.room.updated': 'Cập nhật phòng',
     'catalog.bed.created': 'Thêm giường',
-    'catalog.bed.updated': 'Cập nhật giường'
+    'catalog.bed.updated': 'Cập nhật giường',
+    'catalog.bed.deleted': 'Xóa giường chưa có lịch sử',
+    'catalog.bed.retired': 'Ngưng giường có lịch sử'
   };
   return map[item.text] || item.text;
 }
@@ -292,29 +333,61 @@ function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&l
 function renderCatalog(){
   const host=document.querySelector('#catalogView');
   if(!host)return;
-  const roomOptions=roomRecords.map(r=>'<option value="'+r.uuid+'">'+esc(r.code)+' · '+esc(r.name)+'</option>').join('');
+
+  const deptOptions=departments.map(d=>'<option value="'+d.uuid+'">'+esc(d.code)+' · '+esc(d.name)+'</option>').join('');
+  const roomOptions=roomRecords.map(r=>{
+    const d=departments.find(x=>x.uuid===r.departmentId);
+    return '<option value="'+r.uuid+'">'+esc(d?.code||'')+' / '+esc(r.code)+' · '+esc(r.name)+'</option>';
+  }).join('');
+
+  const departmentRows=departments.map(d=>{
+    const roomCount=roomRecords.filter(r=>r.departmentId===d.uuid).length;
+    const bedCount=beds.filter(b=>b.departmentId===d.uuid).length;
+    return '<tr><td><b>'+esc(d.code)+'</b></td><td>'+esc(d.name)+'</td><td>'+roomCount+'</td><td>'+bedCount+'</td><td><button class="btn" onclick="editDepartment(\''+d.uuid+'\')">Sửa</button></td></tr>';
+  }).join('');
+
   const roomRows=roomRecords.map(r=>{
     const n=beds.filter(b=>b.roomUuid===r.uuid).length;
-    return '<tr><td><b>'+esc(r.code)+'</b></td><td>'+esc(r.name)+'</td><td>'+n+'</td><td><button class="btn" onclick="editRoom(\''+r.uuid+'\')">Sửa</button></td></tr>'
+    const d=departments.find(x=>x.uuid===r.departmentId);
+    return '<tr><td>'+esc(d?.code||'—')+'</td><td><b>'+esc(r.code)+'</b></td><td>'+esc(r.name)+'</td><td>'+n+'</td><td><button class="btn" onclick="editRoom(\''+r.uuid+'\')">Sửa</button></td></tr>';
   }).join('');
-  const bedRows=beds.map(b=>
-    '<tr><td><b>'+esc(b.id)+'</b></td><td>'+esc(b.room)+'</td><td>'+b.max+'</td><td><span class="'+(b.active?'status-on':'status-off')+'">'+(b.active?'Hoạt động':'Ngưng')+'</span></td><td><button class="btn" onclick="editBed(\''+b.uuid+'\')">Sửa</button> <button class="btn '+(b.active?'danger':'')+'" onclick="toggleBed(\''+b.uuid+'\')">'+(b.active?'Ngưng':'Kích hoạt')+'</button></td></tr>'
-  ).join('');
+
+  const bedRows=beds.map(b=>{
+    const d=departments.find(x=>x.uuid===b.departmentId);
+    return '<tr>'+
+      '<td>'+esc(d?.code||'—')+'</td>'+
+      '<td>'+esc(b.room)+'</td>'+
+      '<td><b>'+esc(b.id)+'</b></td>'+
+      '<td>'+b.max+'</td>'+
+      '<td><span class="'+(b.active?'status-on':'status-off')+'">'+(b.active?'Hoạt động':'Ngưng')+'</span></td>'+
+      '<td style="white-space:nowrap">'+
+        '<button class="btn" onclick="editBed(\''+b.uuid+'\')">Sửa</button> '+
+        '<button class="btn" onclick="showBedQR(\''+b.uuid+'\')">QR</button> '+
+        (b.active
+          ? '<button class="btn danger" onclick="deleteBed(\''+b.uuid+'\')">Xóa</button>'
+          : '<button class="btn" onclick="toggleBed(\''+b.uuid+'\')">Kích hoạt</button>')+
+      '</td></tr>';
+  }).join('');
 
   host.innerHTML=
     '<div class="catalog-grid">'+
+      '<div class="room"><div class="room-title"><span>Khoa</span><span class="muted">'+departments.length+' khoa</span></div>'+
+        '<div class="catalog-form"><input id="newDeptCode" placeholder="Mã khoa, VD NTH"><input id="newDeptName" placeholder="Tên khoa"><button class="btn primary" onclick="createDepartmentFromForm()">+ Thêm khoa</button></div>'+
+        '<div style="overflow:auto;max-height:520px"><table class="catalog-table"><thead><tr><th>Mã</th><th>Tên khoa</th><th>Phòng</th><th>Giường</th><th></th></tr></thead><tbody>'+departmentRows+'</tbody></table></div>'+
+      '</div>'+
       '<div class="room"><div class="room-title"><span>Phòng</span><span class="muted">'+roomRecords.length+' phòng</span></div>'+
-        '<div class="catalog-form"><input id="newRoomCode" placeholder="Mã phòng, VD P305"><input id="newRoomName" placeholder="Tên phòng"><button class="btn primary" onclick="createRoomFromForm()">+ Thêm phòng</button></div>'+
-        '<div style="overflow:auto"><table class="catalog-table"><thead><tr><th>Mã</th><th>Tên</th><th>Số giường</th><th></th></tr></thead><tbody>'+roomRows+'</tbody></table></div>'+
+        '<div class="catalog-form"><select id="newRoomDept"><option value="">Chọn khoa</option>'+deptOptions+'</select><input id="newRoomCode" placeholder="Mã phòng, VD P305"><input id="newRoomName" placeholder="Tên phòng"><button class="btn primary" onclick="createRoomFromForm()">+ Thêm phòng</button></div>'+
+        '<div style="overflow:auto;max-height:520px"><table class="catalog-table"><thead><tr><th>Khoa</th><th>Mã</th><th>Tên</th><th>Giường</th><th></th></tr></thead><tbody>'+roomRows+'</tbody></table></div>'+
       '</div>'+
       '<div class="room"><div class="room-title"><span>Giường</span><span class="muted">'+beds.length+' giường</span></div>'+
-        '<div class="catalog-form"><select id="newBedRoom"><option value="">Chọn phòng</option>'+roomOptions+'</select><input id="newBedCode" placeholder="Mã giường, VD G21"><input id="newBedMax" type="number" min="1" max="6" value="3" title="Số BN tối đa"><button class="btn primary" onclick="createBedFromForm()">+ Thêm giường</button></div>'+
-        '<div style="overflow:auto;max-height:520px"><table class="catalog-table"><thead><tr><th>Mã</th><th>Phòng</th><th>Tối đa</th><th>Trạng thái</th><th></th></tr></thead><tbody>'+bedRows+'</tbody></table></div>'+
+        '<div class="catalog-form"><select id="newBedRoom"><option value="">Chọn Khoa / Phòng</option>'+roomOptions+'</select><input id="newBedCode" placeholder="Mã giường, VD G21"><input id="newBedMax" type="number" min="1" max="6" value="3" title="Số BN tối đa"><button class="btn primary" onclick="createBedFromForm()">+ Thêm giường</button></div>'+
+        '<div style="overflow:auto;max-height:520px"><table class="catalog-table"><thead><tr><th>Khoa</th><th>Phòng</th><th>Mã giường</th><th>Tối đa</th><th>Trạng thái</th><th></th></tr></thead><tbody>'+bedRows+'</tbody></table></div>'+
       '</div>'+
     '</div>';
 }
 
 function render() {
+  renderDepartmentSelector();
   renderStats();
   renderRooms();
   renderTimeline();
@@ -323,10 +396,32 @@ function render() {
 }
 
 
+
+window.createDepartmentFromForm = async function(){
+  const code=document.querySelector('#newDeptCode')?.value.trim();
+  const name=document.querySelector('#newDeptName')?.value.trim();
+  if(!code||!name){alert('Nhập đủ mã khoa và tên khoa.');return}
+  const {data,error}=await sb.rpc('create_department',{p_code:code,p_name:name});
+  if(error){alert('Không thể thêm khoa: '+error.message);return}
+  selectedDepartmentId=data||selectedDepartmentId;
+  if(selectedDepartmentId)localStorage.setItem('bedflow.selectedDepartmentId',selectedDepartmentId);
+  toast('Đã thêm khoa');await loadRemote(false);
+};
+
+window.editDepartment = async function(departmentId){
+  const d=departments.find(x=>x.uuid===departmentId);if(!d)return;
+  const code=prompt('Mã khoa',d.code);if(code===null)return;
+  const name=prompt('Tên khoa',d.name);if(name===null)return;
+  const {error}=await sb.rpc('update_department',{p_department_id:d.uuid,p_code:code,p_name:name});
+  if(error){alert('Không thể cập nhật khoa: '+error.message);return}
+  toast('Đã cập nhật khoa');await loadRemote(false);
+};
+
 window.createRoomFromForm = async function(){
+  const departmentId=document.querySelector('#newRoomDept')?.value;
   const code=document.querySelector('#newRoomCode')?.value.trim();
   const name=document.querySelector('#newRoomName')?.value.trim();
-  if(!departmentId || !code || !name){alert('Nhập đủ mã phòng và tên phòng.');return}
+  if(!departmentId||!code||!name){alert('Chọn khoa và nhập đủ mã phòng, tên phòng.');return}
   const {error}=await sb.rpc('create_room',{p_department_id:departmentId,p_code:code,p_name:name});
   if(error){alert('Không thể thêm phòng: '+error.message);return}
   toast('Đã thêm phòng');await loadRemote(false);
@@ -348,28 +443,75 @@ window.createBedFromForm = async function(){
   if(!roomId||!code){alert('Chọn phòng và nhập mã giường.');return}
   const {error}=await sb.rpc('create_bed',{p_room_id:roomId,p_code:code,p_max_occupancy:max});
   if(error){alert('Không thể thêm giường: '+error.message);return}
-  toast('Đã thêm giường');await loadRemote(false);
+  toast('Đã thêm giường và tạo QR');await loadRemote(false);
 };
 
 window.editBed = async function(bedId){
   const b=beds.find(x=>x.uuid===bedId);if(!b)return;
   const code=prompt('Mã giường',b.id);if(code===null)return;
-  const roomCode=prompt('Mã phòng của giường',b.room);if(roomCode===null)return;
-  const room=roomRecords.find(r=>r.code.toUpperCase()===roomCode.trim().toUpperCase());
-  if(!room){alert('Không tìm thấy phòng '+roomCode);return}
   const maxText=prompt('Số BN tối đa trên giường',String(b.max));if(maxText===null)return;
   const max=Number(maxText);
-  const {error}=await sb.rpc('update_bed',{p_bed_id:b.uuid,p_room_id:room.uuid,p_code:code,p_max_occupancy:max,p_is_active:b.active});
+  const {error}=await sb.rpc('update_bed',{p_bed_id:b.uuid,p_room_id:b.roomUuid,p_code:code,p_max_occupancy:max,p_is_active:b.active});
   if(error){alert('Không thể cập nhật giường: '+error.message);return}
   toast('Đã cập nhật giường');await loadRemote(false);
 };
 
+window.deleteBed = async function(bedId){
+  const b=beds.find(x=>x.uuid===bedId);if(!b)return;
+  const ok=confirm('Xóa giường '+b.id+'?\n\nNếu giường chưa từng sử dụng: xóa khỏi danh mục.\nNếu đã có lịch sử: hệ thống sẽ giữ lịch sử và chuyển giường sang trạng thái Ngưng sử dụng.');
+  if(!ok)return;
+  const {data,error}=await sb.rpc('delete_bed',{p_bed_id:b.uuid});
+  if(error){alert('Không thể xóa giường: '+error.message);return}
+  toast(data==='deleted'?'Đã xóa giường':'Giường có lịch sử: đã chuyển sang Ngưng sử dụng');
+  await loadRemote(false);
+};
+
 window.toggleBed = async function(bedId){
   const b=beds.find(x=>x.uuid===bedId);if(!b)return;
-  if(!confirm((b.active?'Ngưng':'Kích hoạt')+' giường '+b.id+'?'))return;
-  const {error}=await sb.rpc('update_bed',{p_bed_id:b.uuid,p_room_id:b.roomUuid,p_code:b.id,p_max_occupancy:b.max,p_is_active:!b.active});
-  if(error){alert('Không thể đổi trạng thái giường: '+error.message);return}
-  toast(b.active?'Đã ngưng giường':'Đã kích hoạt giường');await loadRemote(false);
+  if(!confirm('Kích hoạt lại giường '+b.id+'?'))return;
+  const {error}=await sb.rpc('update_bed',{p_bed_id:b.uuid,p_room_id:b.roomUuid,p_code:b.id,p_max_occupancy:b.max,p_is_active:true});
+  if(error){alert('Không thể kích hoạt giường: '+error.message);return}
+  toast('Đã kích hoạt giường');await loadRemote(false);
+};
+
+window.showBedQR = function(bedId){
+  const b=beds.find(x=>x.uuid===bedId);if(!b)return;
+  const d=departments.find(x=>x.uuid===b.departmentId);
+  document.querySelector('#bedTitle').textContent='QR – '+b.id;
+  document.querySelector('#bedSub').textContent=(d?.name||'')+' • '+b.room;
+  document.querySelector('#bedBody').innerHTML=
+    '<div style="text-align:center;padding:10px">'+
+      '<div style="font-weight:900;font-size:22px">'+esc(b.id)+'</div>'+
+      '<div class="muted">'+esc(d?.name||'')+' · '+esc(b.roomName||b.room)+'</div>'+
+      '<div id="bedQr" style="display:flex;justify-content:center;padding:18px"></div>'+
+      '<div class="muted">QR định danh giường vật lý • đổi mã giường không làm đổi QR</div>'+
+      '<div style="margin-top:14px"><button class="btn primary" onclick="downloadBedQR(\''+b.uuid+'\')">Tải QR PNG</button></div>'+
+    '</div>';
+  bedDialog.showModal();
+  setTimeout(()=>renderQrInto('#bedQr',b.qr,220),30);
+};
+
+function renderQrInto(selector,textValue,size){
+  const q=document.querySelector(selector);if(!q||!window.QRCode)return;
+  q.innerHTML='';
+  new QRCode(q,{text:textValue,width:size,height:size,colorDark:'#0f172a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+}
+
+window.downloadBedQR = function(bedId){
+  const b=beds.find(x=>x.uuid===bedId);if(!b)return;
+  const holder=document.createElement('div');
+  holder.style.position='fixed';holder.style.left='-9999px';document.body.appendChild(holder);
+  new QRCode(holder,{text:b.qr,width:512,height:512,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  setTimeout(()=>{
+    const canvas=holder.querySelector('canvas');
+    const img=holder.querySelector('img');
+    const url=canvas?canvas.toDataURL('image/png'):img?.src;
+    if(url){
+      const a=document.createElement('a');
+      a.href=url;a.download='QR_'+b.id+'.png';a.click();
+    }
+    holder.remove();
+  },80);
 };
 
 window.openBed = function(id) {
@@ -412,19 +554,7 @@ window.openBed = function(id) {
   document.querySelector('#bedBody').innerHTML = html;
   bedDialog.showModal();
 
-  setTimeout(() => {
-    const q = document.querySelector('#bedQr');
-    if (q && window.QRCode) {
-      new QRCode(q, {
-        text: b.qr,
-        width: 156,
-        height: 156,
-        colorDark: '#0f172a',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
-      });
-    }
-  }, 50);
+  setTimeout(() => renderQrInto('#bedQr',b.qr,156), 50);
 };
 
 window.assignPatient = async function(bedCode) {
@@ -516,6 +646,7 @@ function setupRealtime() {
   realtimeChannel = sb.channel('bvcl-bedflow-demo')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bed_stays' }, () => loadRemote(false))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'beds' }, () => loadRemote(false))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, () => loadRemote(false))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => loadRemote(false))
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, () => loadRemote(false))
     .subscribe(status => setLive(status));
@@ -541,10 +672,12 @@ document.querySelector('#scanBtn').onclick = async () => {
       { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 220, height: 220 } },
       text => {
-        let code='';
-        if(/^BED:/i.test(text)) code=text.slice(4).trim().toUpperCase();
-        else { const match=text.match(/\/b\/([^/?#]+)/i); if(match) code=decodeURIComponent(match[1]).trim().toUpperCase(); }
-        if(code && bedByCode(code)) { closeScanner(); openBed(code); }
+        let b=bedByQR(text);
+        if(!b){
+          const match=String(text||'').match(/\/b\/([^/?#]+)/i);
+          if(match)b=bedByCode(decodeURIComponent(match[1]).trim().toUpperCase());
+        }
+        if(b){closeScanner();openBed(b.id);}
       }
     );
   } catch (e) {
