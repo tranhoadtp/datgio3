@@ -8,15 +8,14 @@ https://bqfphelckjvrwxdvekkl.supabase.co/functions/v1/giuong
 ## Source
 https://github.com/tranhoadtp/datgio3
 
-## BVCL BedFlow v0.3
+## BVCL BedFlow v0.4
 - Frontend: HTML/CSS/JavaScript responsive, mobile-first.
-- Host live: Supabase Edge Function.
+- Host production: Vercel từ GitHub.
 - Database: Supabase PostgreSQL.
 - Realtime: Supabase Realtime / Postgres Changes.
-- QR: camera trình duyệt + html5-qrcode.
+- QR: token ổn định gắn với UUID giường vật lý.
 - Giao dịch nghiệp vụ: PostgreSQL RPC.
 - Audit: bảng audit_logs.
-- Chống thao tác đồng thời: advisory transaction lock theo từng giường.
 
 ## Nghiệp vụ hiện có
 - 1 khoa demo, 4 phòng, 20 giường, 25 BN giả.
@@ -24,19 +23,25 @@ https://github.com/tranhoadtp/datgio3
 - Xếp BN, chuyển giường, kết thúc lượt giường.
 - Realtime đa thiết bị.
 - QR cho từng giường và quét camera.
-- Thêm phòng.
-- Sửa mã/tên phòng.
-- Thêm giường vào một phòng.
-- Sửa mã giường.
-- Chỉnh số BN tối đa trên giường.
-- Ngưng/kích hoạt giường.
-- Audit các thay đổi danh mục.
+- Tạo và sửa Khoa.
+- Chọn Khoa đang xem trên dashboard.
+- Tạo và sửa Phòng thuộc từng Khoa.
+- Tạo Giường trong từng Phòng.
+- Đặt/sửa mã Giường.
+- Chỉnh số BN tối đa trên Giường.
+- Tạo QR ổn định cho từng Giường và tải QR PNG.
+- Xóa thật Giường chưa từng có lịch sử.
+- Giường đã có lịch sử: giữ dữ liệu và chuyển sang Ngưng sử dụng.
+- Kích hoạt lại Giường đã ngưng.
+- Audit đầy đủ thay đổi Khoa/Phòng/Giường.
 
 ## Bảo toàn lịch sử
-- Không hard-delete giường.
-- Không cho ngưng giường đang có BN.
-- Không cho chuyển một giường đã có lịch sử sang phòng khác.
-- Mã giường có thể đổi nhưng UUID vật lý của giường không đổi.
+- Giường vật lý có UUID cố định.
+- QR token gắn với UUID, không đổi khi đổi mã giường.
+- Giường chưa từng sử dụng có thể hard-delete.
+- Giường đã có bed_stays không bị xóa vật lý; chỉ chuyển sang Ngưng sử dụng.
+- Không cho xóa/ngưng Giường đang có BN.
+- Không cho chuyển một Giường đã có lịch sử sang Phòng khác.
 
 ## An toàn
 Đây là demo public. RLS được bật nhưng quyền ghi demo được mở cho anonymous để thử chức năng. KHÔNG nhập dữ liệu bệnh nhân thật.
