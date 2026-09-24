@@ -6,6 +6,8 @@ const DEMO_DAY = '2026-09-24';
 
 let beds = [];
 let rooms = [];
+let roomRecords = [];
+let departmentId = null;
 let db = { patients: [], stays: [], audit: [] };
 let realtimeChannel = null;
 let loading = false;
@@ -75,30 +77,36 @@ async function loadRemote(showLoading = true) {
   if (showLoading) setLive('CONNECTING');
 
   try {
-    const [bedRes, patientRes, admRes, stayRes, auditRes] = await Promise.all([
-      sb.from('beds').select('id,code,qr_token,max_occupancy,rooms(code,name)').eq('is_active', true).order('code'),
+    const [deptRes, roomRes, bedRes, patientRes, admRes, stayRes, auditRes] = await Promise.all([
+      sb.from('departments').select('id,code,name').order('code'),
+      sb.from('rooms').select('id,department_id,code,name').order('code'),
+      sb.from('beds').select('id,room_id,code,qr_token,max_occupancy,is_active,rooms(code,name)').order('code'),
       sb.from('patients').select('id,patient_code,full_name').order('patient_code'),
       sb.from('admissions').select('id,patient_id,admission_code,status'),
       sb.from('bed_stays').select('id,admission_id,bed_id,start_at,end_at,status').eq('status', 'valid').order('start_at'),
       sb.from('audit_logs').select('id,event_type,payload,created_at').order('created_at', { ascending: false }).limit(60)
     ]);
 
-    const errors = [bedRes, patientRes, admRes, stayRes, auditRes]
+    const errors = [deptRes, roomRes, bedRes, patientRes, admRes, stayRes, auditRes]
       .map(x => x.error)
       .filter(Boolean);
 
     if (errors.length) throw errors[0];
 
+    departmentId = deptRes.data?.[0]?.id || null;
+    roomRecords = (roomRes.data || []).map(r => ({ uuid:r.id, departmentId:r.department_id, code:r.code, name:r.name }));
     beds = (bedRes.data || []).map(b => ({
       uuid: b.id,
       id: b.code,
+      roomUuid: b.room_id,
       room: b.rooms?.code || '?',
       roomName: b.rooms?.name || '',
       qr: b.qr_token,
-      max: b.max_occupancy
+      max: b.max_occupancy,
+      active: b.is_active
     }));
 
-    rooms = [...new Set(beds.map(b => b.room))];
+    rooms = roomRecords.map(r => r.code);
 
     const admByPatient = new Map((admRes.data || []).map(a => [a.patient_id, a]));
     const admById = new Map((admRes.data || []).map(a => [a.id, a]));
@@ -147,7 +155,7 @@ async function loadRemote(showLoading = true) {
 
 function renderStats() {
   const counts = { available: 0, single: 0, shared2: 0, shared3: 0 };
-  beds.forEach(b => counts[stateForBed(b.id)]++);
+  beds.filter(b => b.active).forEach(b => counts[stateForBed(b.id)]++);
   const census = db.stays.filter(s => !s.end).length;
 
   document.querySelector('#stats').innerHTML = [
@@ -167,7 +175,7 @@ function renderRooms() {
   let html = '';
 
   rooms.forEach(roomCode => {
-    const roomBeds = beds.filter(b => b.room === roomCode).filter(b => {
+    const roomBeds = beds.filter(b => b.active && b.room === roomCode).filter(b => {
       const state = stateForBed(b.id);
       const active = activeForBed(b.id);
       const text = (b.id + ' ' + active.map(s => pt(s.patientId)?.name).join(' ')).toLowerCase();
@@ -239,7 +247,7 @@ function renderTimeline() {
     '<span>00h</span><span>04h</span><span>08h</span><span>12h</span><span>16h</span><span>20h</span><span>24h</span>' +
     '</div></div>';
 
-  beds.forEach(b => {
+  beds.filter(b => b.active).forEach(b => {
     const segs = segmentsForBed(b.id);
     html += '<div class="trow"><div class="tlabel">' + b.id + '<div class="muted">' + b.room + '</div></div><div class="track">';
 
@@ -262,7 +270,11 @@ function auditText(item) {
     'demo.seeded': 'Khởi tạo dữ liệu demo v0.2',
     'bed_stay.started': 'Xếp bệnh nhân vào giường',
     'bed_stay.ended': 'Kết thúc lượt giường',
-    'bed_stay.transferred': 'Chuyển giường'
+    'bed_stay.transferred': 'Chuyển giường',
+    'catalog.room.created': 'Thêm phòng',
+    'catalog.room.updated': 'Cập nhật phòng',
+    'catalog.bed.created': 'Thêm giường',
+    'catalog.bed.updated': 'Cập nhật giường'
   };
   return map[item.text] || item.text;
 }
@@ -275,12 +287,90 @@ function renderAudit() {
   ).join('');
 }
 
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+function renderCatalog(){
+  const host=document.querySelector('#catalogView');
+  if(!host)return;
+  const roomOptions=roomRecords.map(r=>'<option value="'+r.uuid+'">'+esc(r.code)+' · '+esc(r.name)+'</option>').join('');
+  const roomRows=roomRecords.map(r=>{
+    const n=beds.filter(b=>b.roomUuid===r.uuid).length;
+    return '<tr><td><b>'+esc(r.code)+'</b></td><td>'+esc(r.name)+'</td><td>'+n+'</td><td><button class="btn" onclick="editRoom(\''+r.uuid+'\')">Sửa</button></td></tr>'
+  }).join('');
+  const bedRows=beds.map(b=>
+    '<tr><td><b>'+esc(b.id)+'</b></td><td>'+esc(b.room)+'</td><td>'+b.max+'</td><td><span class="'+(b.active?'status-on':'status-off')+'">'+(b.active?'Hoạt động':'Ngưng')+'</span></td><td><button class="btn" onclick="editBed(\''+b.uuid+'\')">Sửa</button> <button class="btn '+(b.active?'danger':'')+'" onclick="toggleBed(\''+b.uuid+'\')">'+(b.active?'Ngưng':'Kích hoạt')+'</button></td></tr>'
+  ).join('');
+
+  host.innerHTML=
+    '<div class="catalog-grid">'+
+      '<div class="room"><div class="room-title"><span>Phòng</span><span class="muted">'+roomRecords.length+' phòng</span></div>'+
+        '<div class="catalog-form"><input id="newRoomCode" placeholder="Mã phòng, VD P305"><input id="newRoomName" placeholder="Tên phòng"><button class="btn primary" onclick="createRoomFromForm()">+ Thêm phòng</button></div>'+
+        '<div style="overflow:auto"><table class="catalog-table"><thead><tr><th>Mã</th><th>Tên</th><th>Số giường</th><th></th></tr></thead><tbody>'+roomRows+'</tbody></table></div>'+
+      '</div>'+
+      '<div class="room"><div class="room-title"><span>Giường</span><span class="muted">'+beds.length+' giường</span></div>'+
+        '<div class="catalog-form"><select id="newBedRoom"><option value="">Chọn phòng</option>'+roomOptions+'</select><input id="newBedCode" placeholder="Mã giường, VD G21"><input id="newBedMax" type="number" min="1" max="6" value="3" title="Số BN tối đa"><button class="btn primary" onclick="createBedFromForm()">+ Thêm giường</button></div>'+
+        '<div style="overflow:auto;max-height:520px"><table class="catalog-table"><thead><tr><th>Mã</th><th>Phòng</th><th>Tối đa</th><th>Trạng thái</th><th></th></tr></thead><tbody>'+bedRows+'</tbody></table></div>'+
+      '</div>'+
+    '</div>';
+}
+
 function render() {
   renderStats();
   renderRooms();
   renderTimeline();
   renderAudit();
+  renderCatalog();
 }
+
+
+window.createRoomFromForm = async function(){
+  const code=document.querySelector('#newRoomCode')?.value.trim();
+  const name=document.querySelector('#newRoomName')?.value.trim();
+  if(!departmentId || !code || !name){alert('Nhập đủ mã phòng và tên phòng.');return}
+  const {error}=await sb.rpc('create_room',{p_department_id:departmentId,p_code:code,p_name:name});
+  if(error){alert('Không thể thêm phòng: '+error.message);return}
+  toast('Đã thêm phòng');await loadRemote(false);
+};
+
+window.editRoom = async function(roomId){
+  const r=roomRecords.find(x=>x.uuid===roomId);if(!r)return;
+  const code=prompt('Mã phòng',r.code);if(code===null)return;
+  const name=prompt('Tên phòng',r.name);if(name===null)return;
+  const {error}=await sb.rpc('update_room',{p_room_id:r.uuid,p_code:code,p_name:name});
+  if(error){alert('Không thể cập nhật phòng: '+error.message);return}
+  toast('Đã cập nhật phòng');await loadRemote(false);
+};
+
+window.createBedFromForm = async function(){
+  const roomId=document.querySelector('#newBedRoom')?.value;
+  const code=document.querySelector('#newBedCode')?.value.trim();
+  const max=Number(document.querySelector('#newBedMax')?.value||3);
+  if(!roomId||!code){alert('Chọn phòng và nhập mã giường.');return}
+  const {error}=await sb.rpc('create_bed',{p_room_id:roomId,p_code:code,p_max_occupancy:max});
+  if(error){alert('Không thể thêm giường: '+error.message);return}
+  toast('Đã thêm giường');await loadRemote(false);
+};
+
+window.editBed = async function(bedId){
+  const b=beds.find(x=>x.uuid===bedId);if(!b)return;
+  const code=prompt('Mã giường',b.id);if(code===null)return;
+  const roomCode=prompt('Mã phòng của giường',b.room);if(roomCode===null)return;
+  const room=roomRecords.find(r=>r.code.toUpperCase()===roomCode.trim().toUpperCase());
+  if(!room){alert('Không tìm thấy phòng '+roomCode);return}
+  const maxText=prompt('Số BN tối đa trên giường',String(b.max));if(maxText===null)return;
+  const max=Number(maxText);
+  const {error}=await sb.rpc('update_bed',{p_bed_id:b.uuid,p_room_id:room.uuid,p_code:code,p_max_occupancy:max,p_is_active:b.active});
+  if(error){alert('Không thể cập nhật giường: '+error.message);return}
+  toast('Đã cập nhật giường');await loadRemote(false);
+};
+
+window.toggleBed = async function(bedId){
+  const b=beds.find(x=>x.uuid===bedId);if(!b)return;
+  if(!confirm((b.active?'Ngưng':'Kích hoạt')+' giường '+b.id+'?'))return;
+  const {error}=await sb.rpc('update_bed',{p_bed_id:b.uuid,p_room_id:b.roomUuid,p_code:b.id,p_max_occupancy:b.max,p_is_active:!b.active});
+  if(error){alert('Không thể đổi trạng thái giường: '+error.message);return}
+  toast(b.active?'Đã ngưng giường':'Đã kích hoạt giường');await loadRemote(false);
+};
 
 window.openBed = function(id) {
   const b = bedByCode(id);
@@ -425,6 +515,8 @@ function setupRealtime() {
 
   realtimeChannel = sb.channel('bvcl-bedflow-demo')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bed_stays' }, () => loadRemote(false))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'beds' }, () => loadRemote(false))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => loadRemote(false))
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, () => loadRemote(false))
     .subscribe(status => setLive(status));
 }
@@ -449,11 +541,10 @@ document.querySelector('#scanBtn').onclick = async () => {
       { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 220, height: 220 } },
       text => {
-        const match = text.match(/(?:BED:|\/b\/)(G\d{2})/i);
-        if (match) {
-          closeScanner();
-          openBed(match[1].toUpperCase());
-        }
+        let code='';
+        if(/^BED:/i.test(text)) code=text.slice(4).trim().toUpperCase();
+        else { const match=text.match(/\/b\/([^/?#]+)/i); if(match) code=decodeURIComponent(match[1]).trim().toUpperCase(); }
+        if(code && bedByCode(code)) { closeScanner(); openBed(code); }
       }
     );
   } catch (e) {
