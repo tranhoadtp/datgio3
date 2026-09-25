@@ -251,7 +251,7 @@ window.openBed=function(bedId,mode='view',stayId=null){
   if(mode==='end')html+=endForm(b,stayId);
   if(mode==='qr')html+=qrForm(b);
   $('#bedBody').innerHTML=html;
-  bedDialog.showModal();
+  $('#bedDialog').showModal();
   if(mode==='qr')setTimeout(()=>renderQr('#bedQr',b.qr,220),40);
   if(mode==='transfer')setTimeout(()=>refreshTransferBeds(b,stayId),20);
 };
@@ -275,7 +275,7 @@ window.submitQuickAdmit=async function(bedId){
 function transferForm(b,stayId){
   const s=db.stays.find(x=>x.id===stayId);if(!s)return '';
   const p=patientForAdmission(s.admissionId),tm=localParts();
-  const rooms=departmentRooms().map(r=>'<option value="'+r.uuid+'">'+esc(r.code)+' · '+esc(r.name)+'</option>').join('');
+  const rooms=departmentRooms().map(r=>'<option value="'+r.uuid+'"'+(r.uuid===b.roomUuid?' selected':'')+'>'+esc(r.code)+' · '+esc(r.name)+'</option>').join('');
   return '<div class="action-panel"><h4>Chuyển '+esc(p?.name||'BN')+'</h4><div class="sub" style="margin-bottom:8px">Từ '+esc(b.roomCode+' – '+b.code)+'</div>'+
     '<div class="form-row"><div class="field"><label>Phòng đến</label><select id="transferRoom" onchange="refreshTransferBedsById(\''+b.uuid+'\',\''+stayId+'\')">'+rooms+'</select></div><div class="field"><label>Giường đến</label><select id="transferBed"></select></div></div>'+
     '<div class="field"><label>Thời điểm chuyển hôm nay</label><input id="transferTime" type="time" value="'+tm.time+'"/></div>'+
@@ -336,7 +336,7 @@ window.openPatient=function(admissionId){
   html+='<h4>Lịch sử giường</h4>';
   stays.forEach(s=>{const b=bedById(s.bedId);html+='<div class="history-line"><b>'+esc((b?.roomCode||'?')+' – '+(b?.code||'?'))+'</b><div class="sub">'+fmtDateTime(s.start)+' → '+(s.end?fmtDateTime(s.end):'hiện tại')+'</div></div>'});
   if(!stays.length)html+='<div class="empty">Chưa có lịch sử giường.</div>';
-  $('#bedBody').innerHTML=html;bedDialog.showModal();
+  $('#bedBody').innerHTML=html;$('#bedDialog').showModal();
 };
 
 window.createDepartment=async function(){
@@ -373,7 +373,7 @@ window.activateBed=async function(id){
 };
 
 async function startScanner(){
-  scanDialog.showModal();
+  $('#scanDialog').showModal();
   if(!window.Html5Qrcode){toast('Không tải được trình quét QR');return}
   try{
     scanner=new Html5Qrcode('reader');
@@ -384,7 +384,7 @@ async function startScanner(){
 }
 window.closeScanner=async function(){
   try{if(scanner){await scanner.stop();await scanner.clear();scanner=null}}catch(e){}
-  if(scanDialog.open)scanDialog.close();
+  if($('#scanDialog').open)$('#scanDialog').close();
 }
 function setupRealtime(){
   if(realtimeChannel)return;
