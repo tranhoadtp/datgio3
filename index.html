@@ -4,86 +4,163 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#0f766e"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-  <meta name="apple-mobile-web-app-title" content="BedFlow"/>
+  <title>BVCL BedFlow</title>
   <link rel="manifest" href="./manifest.webmanifest"/>
-  <title>BVCL BedFlow Demo</title>
   <style>
-    :root{--bg:#f4f7f8;--card:#fff;--ink:#123;--muted:#64748b;--teal:#0f766e;--line:#dbe4e8;--green:#16a34a;--blue:#2563eb;--yellow:#ca8a04;--red:#dc2626;--purple:#7c3aed}
-    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-    button,input,select{font:inherit} button{cursor:pointer}.wrap{max-width:1180px;margin:auto;padding:16px}
-    header{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line)}
-    .head{max-width:1180px;margin:auto;padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between}
-    .brand{display:flex;gap:10px;align-items:center}.logo{width:40px;height:40px;border-radius:12px;background:var(--teal);color:#fff;display:grid;place-items:center;font-size:22px}
-    .brand h1{font-size:17px;margin:0}.brand small{color:var(--muted)} .actions{display:flex;gap:8px;align-items:center}
-    .pill{border-radius:999px;padding:7px 10px;font-size:12px;font-weight:700;border:1px solid var(--line);background:#fff}
-    .live{color:var(--green)}.btn{border:0;border-radius:10px;padding:10px 13px;font-weight:700;background:#e7eef2;color:#123}
-    .btn.primary{background:var(--teal);color:#fff}.btn.danger{background:#fee2e2;color:#991b1b}.btn.ghost{background:#fff;border:1px solid var(--line)}
-    .hero{display:flex;gap:12px;align-items:end;justify-content:space-between;margin:12px 0}.hero h2{margin:0;font-size:24px}.hero p{margin:4px 0 0;color:var(--muted)}
-    .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0}.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}.stat b{font-size:24px}.stat span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
-    .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.toolbar input,.toolbar select{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;min-width:150px}
-    .room{background:#fff;border:1px solid var(--line);border-radius:16px;margin:12px 0;overflow:hidden}.room-title{padding:11px 14px;border-bottom:1px solid var(--line);font-weight:800;display:flex;justify-content:space-between}
-    .beds{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:12px}.bed{min-height:116px;border:1px solid var(--line);border-radius:13px;padding:10px;background:#fff;text-align:left;position:relative}
-    .bed:hover{box-shadow:0 3px 14px #0f172a15}.bed .code{font-weight:900;font-size:16px}.bed .state{font-size:12px;font-weight:800;margin-top:4px}.bed .pts{font-size:12px;margin-top:8px;color:#334155;line-height:1.5}
-    .bed.available{border-left:5px solid var(--green)}.bed.single{border-left:5px solid var(--blue)}.bed.shared2{border-left:5px solid var(--yellow);background:#fffbea}.bed.shared3{border-left:5px solid var(--red);background:#fff6f6}
-    .timeline{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}.trow{display:grid;grid-template-columns:90px 1fr;border-bottom:1px solid var(--line)}.trow:last-child{border:0}.tlabel{padding:9px;font-size:12px;font-weight:800;border-right:1px solid var(--line)}.track{position:relative;height:42px;background:repeating-linear-gradient(to right,#fff 0,#fff calc(8.333% - 1px),#eef2f5 calc(8.333% - 1px),#eef2f5 8.333%)}
-    .seg{position:absolute;top:8px;height:26px;border-radius:7px;color:#fff;font-size:11px;padding:5px 6px;overflow:hidden;white-space:nowrap}.seg.one{background:var(--blue)}.seg.two{background:var(--yellow)}.seg.three{background:var(--red)}
-    dialog{border:0;border-radius:18px;padding:0;max-width:720px;width:min(94vw,720px);box-shadow:0 25px 80px #0f172a55}dialog::backdrop{background:#0f172a77}.modal{padding:18px}.modal-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.modal h3{margin:0}.x{border:0;background:#eef2f5;border-radius:999px;width:34px;height:34px}
-    .list{display:grid;gap:8px;margin:12px 0}.item{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center}.muted{color:var(--muted);font-size:12px}
-    .form{display:grid;gap:10px}.form input,.form select,.form textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;background:#fff}
-    .tabs{display:flex;gap:6px;overflow:auto;padding-bottom:4px}.tab{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px}.tab.active{background:var(--teal);color:#fff;border-color:var(--teal)}
-    .panel{display:none}.panel.active{display:block}.notice{border:1px solid #fde68a;background:#fffbeb;color:#854d0e;padding:10px 12px;border-radius:12px;font-size:13px;margin:10px 0}
-    #reader{width:100%;min-height:260px;border-radius:12px;overflow:hidden;background:#111}.catalog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-    .catalog-form{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding:12px}
-    .catalog-form input,.catalog-form select{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;min-width:0}
-    .catalog-table{width:100%;border-collapse:collapse;font-size:13px}
-    .catalog-table th,.catalog-table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
-    .catalog-table th{font-size:12px;color:var(--muted);background:#f8fafc}
-    .status-on{color:var(--green);font-weight:800}.status-off{color:var(--red);font-weight:800}
-    .footer{color:var(--muted);font-size:12px;padding:24px 0;text-align:center}
-    @media(max-width:1000px){.catalog-grid{grid-template-columns:1fr 1fr}} @media(max-width:850px){.stats{grid-template-columns:repeat(2,1fr)}.beds{grid-template-columns:repeat(2,1fr)}.hero{align-items:start;flex-direction:column}.desktop-only{display:none}.catalog-grid{grid-template-columns:1fr}.catalog-form{grid-template-columns:1fr}.catalog-table{font-size:12px}}
-    @media(max-width:480px){.wrap{padding:10px}.head{padding:8px 10px}.brand small{display:none}.beds{gap:8px;padding:8px}.bed{min-height:108px}.stats{gap:8px}.stat{padding:11px}.stat b{font-size:21px}}
+    :root{
+      --bg:#f5f7fa;--card:#fff;--ink:#172033;--muted:#687386;--line:#e6eaf0;
+      --teal:#0f766e;--teal2:#0d9488;--blue:#2563eb;--amber:#d97706;--red:#dc2626;
+      --green:#16a34a;--slate:#64748b;--shadow:0 8px 30px rgba(15,23,42,.07);
+      --radius:18px
+    }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,select{font:inherit} button{cursor:pointer}
+    .app{min-height:100vh;display:grid;grid-template-columns:230px 1fr}
+    .sidebar{position:sticky;top:0;height:100vh;background:#0b2930;color:#fff;padding:18px 14px;display:flex;flex-direction:column;z-index:20}
+    .brand{display:flex;align-items:center;gap:11px;padding:8px 8px 18px}.brandmark{width:40px;height:40px;border-radius:12px;background:#fff;color:var(--teal);display:grid;place-items:center;font-size:22px;font-weight:900}
+    .brand h1{font-size:17px;margin:0}.brand small{color:#a9c2c6}
+    .nav{display:flex;flex-direction:column;gap:6px}.nav-btn{border:0;background:transparent;color:#c5d7d9;text-align:left;padding:11px 12px;border-radius:11px;font-weight:700}
+    .nav-btn:hover,.nav-btn.active{background:rgba(255,255,255,.11);color:#fff}.nav-btn span{display:inline-block;width:26px}
+    .side-bottom{margin-top:auto}.scan-side{width:100%;border:1px solid rgba(255,255,255,.18);background:#fff;color:#0b2930;padding:11px;border-radius:11px;font-weight:800}
+    .main{min-width:0}
+    .topbar{height:72px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 24px;position:sticky;top:0;z-index:15}
+    .top-left{display:flex;align-items:center;gap:12px}.top-title{font-weight:900;font-size:17px}.dept-select{min-width:260px;border:1px solid var(--line);background:#fff;border-radius:11px;padding:9px 12px;font-weight:700}
+    .live{font-weight:800;font-size:12px}.top-actions{display:flex;align-items:center;gap:9px}
+    .btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:9px 12px;font-weight:750}.btn:hover{background:#f8fafc}
+    .btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}.btn.blue{background:var(--blue);border-color:var(--blue);color:#fff}.btn.danger{color:#b91c1c;border-color:#fecaca;background:#fff7f7}
+    .btn.sm{padding:6px 9px;font-size:12px}.btn.ghost{border-color:transparent;background:#eef7f6;color:var(--teal)}
+    .content{padding:22px;max-width:1500px;margin:auto}.page{display:none}.page.active{display:block}
+    .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}.page-head h2{margin:0;font-size:25px;letter-spacing:-.02em}.page-head p{margin:4px 0 0;color:var(--muted)}
+    .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-bottom:16px}.stat{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px 16px;box-shadow:var(--shadow)}
+    .stat b{display:block;font-size:25px;line-height:1.1}.stat span{display:block;margin-top:5px;color:var(--muted);font-size:12px;font-weight:700}
+    .toolbar{display:flex;gap:9px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:15px}
+    .toolbar input,.toolbar select,.field input,.field select{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 11px;outline:none}.toolbar input{min-width:240px;flex:1}
+    .room-section{background:#fff;border:1px solid var(--line);border-radius:18px;margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow)}
+    .room-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.room-head b{font-size:16px}.muted{color:var(--muted)}
+    .bed-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:11px}
+    .bed-card{border:1px solid var(--line);border-radius:15px;padding:11px;background:#fff;min-height:142px;display:flex;flex-direction:column;gap:9px}
+    .bed-card.available{border-left:5px solid var(--green)}.bed-card.single{border-left:5px solid var(--blue)}.bed-card.shared2{border-left:5px solid var(--amber)}.bed-card.shared3{border-left:5px solid var(--red)}.bed-card.off{opacity:.62;border-left:5px solid var(--slate)}
+    .bed-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.bed-code{border:0;background:transparent;font-size:20px;font-weight:950;padding:0;color:var(--ink);text-align:left}.badge{border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;background:#eef2f7}
+    .badge.available{color:#15803d;background:#ecfdf3}.badge.single{color:#1d4ed8;background:#eff6ff}.badge.shared2{color:#b45309;background:#fff7ed}.badge.shared3{color:#b91c1c;background:#fef2f2}
+    .patients-mini{display:flex;flex-direction:column;gap:6px;min-height:38px}.patient-mini{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 7px;background:#f8fafc;border-radius:9px}
+    .patient-mini b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.patient-mini small{color:var(--muted)}
+    .mini-actions{display:flex;gap:4px}.icon-btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 6px;font-size:11px;font-weight:800}
+    .bed-actions{margin-top:auto;display:flex;gap:6px}.bed-actions .btn{flex:1}
+    .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+    .list{display:flex;flex-direction:column}.list-row{display:grid;grid-template-columns:minmax(220px,1.2fr) 1fr 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}.list-row:last-child{border-bottom:0}
+    .list-row b{font-size:14px}.sub{font-size:12px;color:var(--muted);margin-top:2px}
+    .history-line{padding:10px 12px;border:1px solid var(--line);border-radius:11px;margin-top:8px;background:#fafbfc}
+    .timeline-tools{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:8px;padding:12px}
+    .timeline-bed{padding:13px;border-top:1px solid var(--line)}.timeline-bed:first-child{border-top:0}.timeline-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .stay-row{display:grid;grid-template-columns:130px 1fr 150px;gap:10px;padding:8px 10px;background:#f8fafc;border-radius:9px;margin-top:6px}
+    .admin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.admin-card{padding:14px}.admin-card h3{margin:0 0 10px}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:11px;color:var(--muted);font-weight:800}.field input,.field select{width:100%}
+    .table-wrap{overflow:auto;max-height:420px}.table{width:100%;border-collapse:collapse;font-size:12px}.table th,.table td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}.table th{position:sticky;top:0;background:#f8fafc;z-index:1}
+    .notice{padding:10px 12px;background:#f0fdfa;border:1px solid #ccfbf1;color:#115e59;border-radius:11px;margin:10px 0}
+    .empty{padding:26px;text-align:center;color:var(--muted)}
+    dialog{border:0;padding:0;background:transparent;max-width:none}dialog::backdrop{background:rgba(15,23,42,.46);backdrop-filter:blur(2px)}
+    .modal{background:#fff;width:min(620px,calc(100vw - 24px));max-height:88vh;overflow:auto;border-radius:20px;box-shadow:0 24px 70px rgba(15,23,42,.25)}
+    .modal-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;z-index:2}.modal-head h3{margin:0;font-size:20px}.modal-body{padding:15px}
+    .x{border:0;background:#eef2f7;width:34px;height:34px;border-radius:10px;font-size:20px}
+    .current-patient{padding:10px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;display:flex;justify-content:space-between;gap:10px;align-items:center}.current-patient .actions{display:flex;gap:5px;flex-wrap:wrap}
+    .action-panel{margin-top:12px;padding:12px;border-radius:13px;background:#f8fafc;border:1px solid var(--line)}.action-panel h4{margin:0 0 10px}
+    #reader{width:100%}.qrbox{display:flex;justify-content:center;padding:14px}.footer{text-align:center;color:var(--muted);font-size:11px;padding:22px 0}
+    .mobile-nav{display:none}
+    @media(max-width:1180px){.bed-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.admin-grid{grid-template-columns:1fr}.timeline-tools{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:900px){
+      .app{grid-template-columns:1fr}.sidebar{display:none}.topbar{height:auto;min-height:64px;padding:9px 12px;align-items:flex-start}.top-left{flex-direction:column;align-items:flex-start;gap:6px}.top-title{display:none}.dept-select{min-width:0;width:210px}
+      .content{padding:12px 10px 80px}.page-head{align-items:flex-start}.page-head h2{font-size:21px}.stats{grid-template-columns:repeat(2,1fr)}.stats .stat:first-child{grid-column:span 2}.bed-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px}
+      .list-row{grid-template-columns:1fr auto}.list-row .hide-mobile{display:none}.timeline-tools{grid-template-columns:1fr 1fr}.stay-row{grid-template-columns:1fr}.mobile-nav{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+      .mobile-nav button{border:0;background:#fff;padding:10px 4px 8px;font-size:11px;color:var(--muted);font-weight:800}.mobile-nav button.active{color:var(--teal)}
+    }
+    @media(max-width:520px){.bed-grid{grid-template-columns:1fr}.top-actions .label{display:none}.dept-select{width:175px}.timeline-tools{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-<header><div class="head">
-  <div class="brand"><div class="logo">🛏</div><div><h1>BVCL BedFlow <span class="muted">Demo</span></h1><small>Quản lý giường nội trú theo timeline</small></div></div>
-  <div class="actions"><span class="pill live" id="liveBadge">● REALTIME</span><button class="btn ghost" id="scanBtn">📷 Quét QR</button></div>
-</div></header>
-<main class="wrap">
-  <section class="hero"><div><h2 id="wardTitle">Khoa</h2><p>Dữ liệu giả lập • 24/09/2026 • không dùng cho thanh toán</p></div><div style="min-width:220px"><select id="departmentSelect" aria-label="Chọn khoa" style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff"></select></div>
-    <div class="tabs"><button class="tab active" data-tab="board">Sơ đồ giường</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="audit">Nhật ký</button><button class="tab" data-tab="catalog">Danh mục</button></div>
-  </section>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brandmark">B</div><div><h1>BVCL BedFlow</h1><small>Quản lý giường realtime</small></div></div>
+    <nav class="nav">
+      <button class="nav-btn active" data-page="overview"><span>▦</span>Tổng quan</button>
+      <button class="nav-btn" data-page="patients"><span>♙</span>Bệnh nhân</button>
+      <button class="nav-btn" data-page="beds"><span>▤</span>Giường & Timeline</button>
+      <button class="nav-btn" data-page="admin"><span>⚙</span>Quản trị</button>
+    </nav>
+    <div class="side-bottom"><button class="scan-side" id="scanBtnSide">📷 Quét QR giường</button></div>
+  </aside>
 
-  <section id="board" class="panel active">
-    <div class="stats" id="stats"></div>
-    <div class="toolbar"><input id="search" placeholder="Tìm BN / giường..."/><select id="filter"><option value="all">Tất cả</option><option value="available">Giường trống</option><option value="single">1 BN</option><option value="shared2">Ghép 2</option><option value="shared3">Ghép ≥3</option></select><button class="btn" id="resetBtn">↻ Tải lại</button></div>
-    <div id="rooms"></div>
-  </section>
+  <div class="main">
+    <header class="topbar">
+      <div class="top-left"><div class="top-title">BVCL BedFlow</div><select id="departmentSelect" class="dept-select" aria-label="Chọn khoa"></select></div>
+      <div class="top-actions"><span id="liveBadge" class="live">● REALTIME</span><button class="btn ghost" id="scanBtn">📷 <span class="label">Quét QR</span></button></div>
+    </header>
 
-  <section id="timeline" class="panel">
-    <div class="notice"><b>Nguyên tắc:</b> timeline thực tế là nguồn dữ liệu gốc. Hệ thống tự suy ra các đoạn 1 BN / ghép 2 / ghép ≥3; không nhập “50%” thủ công.</div>
-    <div class="timeline" id="timelineView"></div>
-  </section>
+    <main class="content">
+      <section id="page-overview" class="page active">
+        <div class="page-head"><div><h2>Tổng quan giường hiện tại</h2><p>Thao tác trực tiếp tại từng giường hoặc quét QR đầu giường.</p></div><button class="btn" id="reloadBtn">↻ Tải lại</button></div>
+        <div id="stats" class="stats"></div>
+        <div class="toolbar">
+          <input id="overviewSearch" placeholder="Tìm bệnh nhân hoặc mã giường…"/>
+          <select id="overviewFilter"><option value="all">Tất cả trạng thái</option><option value="available">Giường trống</option><option value="single">1 BN</option><option value="shared2">Ghép 2</option><option value="shared3">Ghép ≥3</option></select>
+        </div>
+        <div id="overviewRooms"></div>
+      </section>
 
-  <section id="audit" class="panel">
-    <div class="room"><div class="room-title"><span>Nhật ký thao tác</span><span class="muted">Audit demo</span></div><div class="list" id="auditList" style="padding:12px"></div></div>
-  </section>
+      <section id="page-patients" class="page">
+        <div class="page-head"><div><h2>Danh sách bệnh nhân</h2><p>Tìm BN hiện tại hoặc lục lại lịch sử đã rời giường để đối chiếu.</p></div></div>
+        <div class="toolbar"><input id="patientSearch" placeholder="Tên BN / mã BN / mã đợt điều trị…"/><select id="patientFilter"><option value="all">Tất cả</option><option value="inbed">Đang nằm giường</option><option value="nobed">Không nằm giường</option></select></div>
+        <div class="card"><div id="patientList" class="list"></div></div>
+      </section>
 
-  <section id="catalog" class="panel">
-    <div class="notice"><b>Danh mục demo:</b> Có thể thêm/sửa Phòng và Giường, đổi mã giường, chỉnh sức chứa tối đa và ngưng/kích hoạt giường. Giường đã có lịch sử không được chuyển sang phòng khác; giường đang có BN không được ngưng hoạt động.</div>
-    <div id="catalogView"></div>
-  </section>
+      <section id="page-beds" class="page">
+        <div class="page-head"><div><h2>Giường & Timeline</h2><p>Tra cứu theo ngày, phòng, giường hoặc bệnh nhân; giữ nguyên lịch sử theo giờ.</p></div></div>
+        <div class="card">
+          <div class="timeline-tools">
+            <div class="field"><label>Từ ngày</label><input id="timelineFrom" type="date"/></div>
+            <div class="field"><label>Đến ngày</label><input id="timelineTo" type="date"/></div>
+            <div class="field"><label>Phòng</label><select id="timelineRoom"></select></div>
+            <div class="field"><label>Tìm</label><input id="timelineSearch" placeholder="BN / giường"/></div>
+            <div class="field"><label>&nbsp;</label><button class="btn primary" id="timelineApply">Tra cứu</button></div>
+          </div>
+          <div id="timelineList"></div>
+        </div>
+      </section>
 
-  <div class="footer">BVCL BedFlow v0.4 • Khoa–Phòng–Giường • Supabase Realtime</div>
-</main>
+      <section id="page-admin" class="page">
+        <div class="page-head"><div><h2>Quản trị</h2><p>Modify Khoa → Phòng → Giường, QR và xem audit log.</p></div></div>
+        <div id="adminCatalog" class="admin-grid"></div>
+        <div class="card" style="margin-top:12px"><div class="room-head"><b>Nhật ký thao tác</b><span class="muted">Audit</span></div><div id="auditList" class="list"></div></div>
+      </section>
 
-<dialog id="bedDialog"><div class="modal"><div class="modal-head"><div><h3 id="bedTitle"></h3><div class="muted" id="bedSub"></div></div><button class="x" onclick="bedDialog.close()">×</button></div><div id="bedBody"></div></div></dialog>
-<dialog id="scanDialog"><div class="modal"><div class="modal-head"><div><h3>Quét QR giường</h3><div class="muted">QR mẫu: BED:G01, BED:G02...</div></div><button class="x" onclick="closeScanner()">×</button></div><div id="reader"></div><div class="form" style="margin-top:12px"><input id="manualBed" placeholder="Nhập mã giường, ví dụ G01"/><button class="btn primary" id="manualOpen">Mở giường</button></div></div></dialog>
+      <div class="footer">BVCL BedFlow v0.5 • Workflow QR-first • Supabase Realtime</div>
+    </main>
+  </div>
+</div>
+
+<nav class="mobile-nav">
+  <button class="active" data-page="overview">▦<br>Tổng quan</button>
+  <button data-page="patients">♙<br>Bệnh nhân</button>
+  <button data-page="beds">▤<br>Giường</button>
+  <button data-page="admin">⚙<br>Quản trị</button>
+</nav>
+
+<dialog id="bedDialog">
+  <div class="modal">
+    <div class="modal-head"><div><h3 id="bedTitle">Giường</h3><div id="bedSub" class="muted"></div></div><button class="x" onclick="bedDialog.close()">×</button></div>
+    <div class="modal-body" id="bedBody"></div>
+  </div>
+</dialog>
+
+<dialog id="scanDialog">
+  <div class="modal">
+    <div class="modal-head"><div><h3>Quét QR giường</h3><div class="muted">Quét xong sẽ mở thẳng module nhập BN của giường.</div></div><button class="x" onclick="closeScanner()">×</button></div>
+    <div class="modal-body"><div id="reader"></div><div class="form-row" style="margin-top:10px"><input id="manualBed" placeholder="Nhập mã giường, VD G01"/><button class="btn primary" id="manualOpen">Mở giường</button></div></div>
+  </div>
+</dialog>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./app.js"></script>
-</body></html>
+<script src="./app.js?v=05"></script>
+</body>
+</html>
