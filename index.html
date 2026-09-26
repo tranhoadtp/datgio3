@@ -65,13 +65,23 @@
     .current-patient{padding:10px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;display:flex;justify-content:space-between;gap:10px;align-items:center}.current-patient .actions{display:flex;gap:5px;flex-wrap:wrap}
     .action-panel{margin-top:12px;padding:12px;border-radius:13px;background:#f8fafc;border:1px solid var(--line)}.action-panel h4{margin:0 0 10px}
     #reader{width:100%}.qrbox{display:flex;justify-content:center;padding:14px}.footer{text-align:center;color:var(--muted);font-size:11px;padding:22px 0}
+    .scan-hero{background:linear-gradient(135deg,#0b5f5a,#0f766e);color:#fff;border-radius:20px;padding:18px;display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:15px;box-shadow:0 14px 34px rgba(15,118,110,.18)}
+    .scan-hero h3{margin:0;font-size:21px}.scan-hero p{margin:5px 0 0;color:#d9f5f1}.scan-big{border:0;background:#fff;color:#0f766e;border-radius:15px;padding:15px 22px;font-weight:950;font-size:17px;white-space:nowrap}
+    .quick-tip{font-size:12px;color:#d9f5f1;margin-top:7px}
+    .optional{margin-top:9px}.optional summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:800}
+    .action-big{width:100%;min-height:48px;font-size:15px}
+    .patient-action-row{display:grid;grid-template-columns:1fr auto auto;gap:7px;align-items:center;padding:11px;border:1px solid var(--line);border-radius:13px;margin-bottom:8px;background:#fff}
+    .patient-action-row b{font-size:15px}
+    .fab-scan{position:fixed;right:18px;bottom:22px;z-index:35;border:0;background:#0f766e;color:#fff;border-radius:999px;padding:14px 18px;font-weight:900;box-shadow:0 12px 30px rgba(15,118,110,.3)}
+    .scan-destination{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:11px;border-radius:11px;margin:10px 0}
     .mobile-nav{display:none}
     @media(max-width:1180px){.bed-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.admin-grid{grid-template-columns:1fr}.timeline-tools{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:900px){
       .app{grid-template-columns:1fr}.sidebar{display:none}.topbar{height:auto;min-height:64px;padding:9px 12px;align-items:flex-start}.top-left{flex-direction:column;align-items:flex-start;gap:6px}.top-title{display:none}.dept-select{min-width:0;width:210px}
-      .content{padding:12px 10px 80px}.page-head{align-items:flex-start}.page-head h2{font-size:21px}.stats{grid-template-columns:repeat(2,1fr)}.stats .stat:first-child{grid-column:span 2}.bed-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px}
+      .content{padding:12px 10px 92px}.page-head{align-items:flex-start}.page-head h2{font-size:21px}.stats{grid-template-columns:repeat(2,1fr)}.stats .stat:first-child{grid-column:span 2}.bed-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px}
       .list-row{grid-template-columns:1fr auto}.list-row .hide-mobile{display:none}.timeline-tools{grid-template-columns:1fr 1fr}.stay-row{grid-template-columns:1fr}.mobile-nav{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
       .mobile-nav button{border:0;background:#fff;padding:10px 4px 8px;font-size:11px;color:var(--muted);font-weight:800}.mobile-nav button.active{color:var(--teal)}
+      .scan-hero{align-items:stretch;flex-direction:column}.scan-big{width:100%;min-height:58px}.fab-scan{bottom:72px}
     }
     @media(max-width:520px){.bed-grid{grid-template-columns:1fr}.top-actions .label{display:none}.dept-select{width:175px}.timeline-tools{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}}
   </style>
@@ -98,11 +108,17 @@
     <main class="content">
       <section id="page-overview" class="page active">
         <div class="page-head"><div><h2>Tổng quan giường hiện tại</h2><p>Thao tác trực tiếp tại từng giường hoặc quét QR đầu giường.</p></div><button class="btn" id="reloadBtn">↻ Tải lại</button></div>
-        <div id="stats" class="stats"></div>
-        <div class="toolbar">
-          <input id="overviewSearch" placeholder="Tìm bệnh nhân hoặc mã giường…"/>
-          <select id="overviewFilter"><option value="all">Tất cả trạng thái</option><option value="available">Giường trống</option><option value="single">1 BN</option><option value="shared2">Ghép 2</option><option value="shared3">Ghép ≥3</option></select>
+        <div class="scan-hero">
+          <div><h3>Quét QR để thao tác ngay</h3><p>Quét mã ở đầu giường → mở đúng giường → nhập BN, chuyển hoặc rời giường.</p><div class="quick-tip">Không cần tìm phòng hay mã giường.</div></div>
+          <button class="scan-big" id="scanHeroBtn">📷 QUÉT QR GIƯỜNG</button>
         </div>
+        <div id="stats" class="stats"></div>
+        <details class="optional"><summary>Tra cứu thủ công (khi không quét được QR)</summary>
+          <div class="toolbar" style="margin-top:8px">
+            <input id="overviewSearch" placeholder="Tìm bệnh nhân hoặc mã giường…"/>
+            <select id="overviewFilter"><option value="all">Tất cả trạng thái</option><option value="available">Giường trống</option><option value="single">1 BN</option><option value="shared2">Ghép 2</option><option value="shared3">Ghép ≥3</option></select>
+          </div>
+        </details>
         <div id="overviewRooms"></div>
       </section>
 
@@ -132,11 +148,12 @@
         <div class="card" style="margin-top:12px"><div class="room-head"><b>Nhật ký thao tác</b><span class="muted">Audit</span></div><div id="auditList" class="list"></div></div>
       </section>
 
-      <div class="footer">BVCL BedFlow v0.5 • Workflow QR-first • Supabase Realtime</div>
+      <div class="footer">BVCL BedFlow v0.6 • QR-first tối giản • Supabase Realtime</div>
     </main>
   </div>
 </div>
 
+<button class="fab-scan" id="scanFab">📷 Quét QR</button>
 <nav class="mobile-nav">
   <button class="active" data-page="overview">▦<br>Tổng quan</button>
   <button data-page="patients">♙<br>Bệnh nhân</button>
@@ -153,7 +170,7 @@
 
 <dialog id="scanDialog">
   <div class="modal">
-    <div class="modal-head"><div><h3>Quét QR giường</h3><div class="muted">Quét xong sẽ mở thẳng module nhập BN của giường.</div></div><button class="x" onclick="closeScanner()">×</button></div>
+    <div class="modal-head"><div><h3 id="scanTitle">Quét QR giường</h3><div class="muted" id="scanPurposeText">Quét xong sẽ mở thẳng đúng giường.</div></div><button class="x" onclick="closeScanner()">×</button></div>
     <div class="modal-body"><div id="reader"></div><div class="form-row" style="margin-top:10px"><input id="manualBed" placeholder="Nhập mã giường, VD G01"/><button class="btn primary" id="manualOpen">Mở giường</button></div></div>
   </div>
 </dialog>
@@ -161,6 +178,6 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./app.js?v=05"></script>
+<script src="./app.js?v=06"></script>
 </body>
 </html>
