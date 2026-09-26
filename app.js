@@ -304,8 +304,8 @@ function addForm(b){
   return '<div class="action-panel"><h4>Nhập BN vào '+esc(b.code)+'</h4>'+
     (n?'<div class="notice">Đang có '+n+' BN. Thêm BN mới → hệ thống tự ghi nhận <b>ghép '+(n+1)+'</b>.</div>':'')+
     '<div class="field"><label>Tên bệnh nhân</label><input id="quickName" autocomplete="off" placeholder="Nhập họ tên BN" style="font-size:17px;padding:13px"/></div>'+
-    '<div class="sub" style="margin-top:8px">Mặc định bắt đầu lúc <b>'+tm.time+'</b> hôm nay.</div>'+
-    '<details class="optional"><summary>Sửa giờ nếu nhập hồi cứu</summary><div class="field" style="margin-top:7px"><input id="quickTime" type="time" value="'+tm.time+'"/></div></details>'+
+    '<div class="field" style="margin-top:9px"><label>Thời điểm bắt đầu (giờ : phút)</label><input id="quickTime" type="time" step="60" value="'+tm.time+'" style="font-size:17px;padding:13px"/></div>'+
+    '<div class="sub" style="margin-top:6px">Tự động lấy giờ hiện tại; có thể sửa trước khi xác nhận.</div>'+
     '<button class="btn primary action-big" style="margin-top:11px" onclick="submitQuickAdmit(\''+b.uuid+'\')">XÁC NHẬN NHẬP BN</button></div>';
 }
 window.submitQuickAdmit=async function(bedId){
@@ -338,8 +338,8 @@ function showTransferConfirm(stayId,destinationBedId){
   $('#bedSub').textContent=src.roomCode+' – '+src.code+' → '+dst.roomCode+' – '+dst.code;
   $('#bedBody').innerHTML=
     '<div class="scan-destination"><b>QR đích: '+esc(dst.roomCode+' – '+dst.code)+'</b><div style="margin-top:4px">'+(n?('Giường đang có '+n+' BN → sau chuyển sẽ thành ghép '+(n+1)):'Giường đang trống')+'</div></div>'+
-    '<div class="sub">Mặc định chuyển lúc <b>'+tm.time+'</b> hôm nay.</div>'+
-    '<details class="optional"><summary>Sửa giờ nếu cần</summary><div class="field" style="margin-top:7px"><input id="transferTime" type="time" value="'+tm.time+'"/></div></details>'+
+    '<div class="field"><label>Thời điểm chuyển (giờ : phút)</label><input id="transferTime" type="time" step="60" value="'+tm.time+'" style="font-size:17px;padding:13px"/></div>'+
+    '<div class="sub" style="margin-top:6px">Tự động lấy giờ hiện tại; có thể sửa trước khi xác nhận.</div>'+
     '<button class="btn blue action-big" style="margin-top:12px" onclick="confirmScannedTransfer(\''+stayId+'\',\''+dst.uuid+'\')">XÁC NHẬN CHUYỂN</button>'+
     '<button class="btn action-big" style="margin-top:7px" onclick="startTransferScan(\''+stayId+'\',\''+src.uuid+'\')">📷 Quét lại QR đích</button>';
   $('#bedDialog').showModal();
@@ -356,25 +356,20 @@ window.confirmScannedTransfer=async function(stayId,destinationBedId){
   openBed(destinationBedId,'view');
 };
 
-window.confirmEndNow=async function(stayId,bedId){
-  const s=db.stays.find(x=>x.id===stayId);if(!s)return;
-  const p=patientForAdmission(s.admissionId),b=bedById(bedId),tm=localParts();
-  if(!confirm('Cho '+(p?.name||'BN')+' rời '+b.code+' lúc '+tm.time+'?'))return;
-  const {error}=await sb.rpc('end_bed_stay',{p_stay_id:stayId,p_end_at:nowISO()});
-  if(error){alert('Không thể kết thúc: '+error.message);return}
-  toast('Đã ghi nhận rời '+b.code);
-  await loadRemote(false);
-  openBed(bedId,'view');
+window.confirmEndNow=function(stayId,bedId){
+  openBed(bedId,'endEdit',stayId);
 };
 function endEditForm(b,stayId){
   const s=db.stays.find(x=>x.id===stayId);if(!s)return '';
   const p=patientForAdmission(s.admissionId),tm=localParts();
-  return '<div class="action-panel"><h4>Sửa thời điểm rời giường</h4><div class="notice"><b>'+esc(p?.name||'BN')+'</b></div>'+
-    '<div class="field"><input id="endTime" type="time" value="'+tm.time+'"/></div>'+
-    '<button class="btn danger action-big" style="margin-top:10px" onclick="submitEndEdited(\''+stayId+'\',\''+b.uuid+'\')">Xác nhận</button></div>';
+  return '<div class="action-panel"><h4>Rời giường</h4><div class="notice"><b>'+esc(p?.name||'BN')+'</b> · '+esc(b.roomCode+' – '+b.code)+'</div>'+
+    '<div class="field"><label>Thời điểm rời giường (giờ : phút)</label><input id="endTime" type="time" step="60" value="'+tm.time+'" style="font-size:17px;padding:13px"/></div>'+
+    '<div class="sub" style="margin-top:6px">Tự động lấy giờ hiện tại; có thể sửa trước khi xác nhận.</div>'+
+    '<button class="btn danger action-big" style="margin-top:10px" onclick="submitEndEdited(\''+stayId+'\',\''+b.uuid+'\')">XÁC NHẬN RỜI GIƯỜNG</button></div>';
 }
 window.submitEndEdited=async function(stayId,bedId){
   const tm=localParts(),time=$('#endTime')?.value||tm.time;
+  if(!time){alert('Nhập giờ/phút rời giường.');return}
   const {error}=await sb.rpc('end_bed_stay',{p_stay_id:stayId,p_end_at:isoAt(tm.date,time)});
   if(error){alert('Không thể kết thúc: '+error.message);return}
   toast('Đã ghi nhận rời giường');await loadRemote(false);openBed(bedId,'view');
