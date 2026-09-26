@@ -7,6 +7,7 @@ let departments=[],roomRecords=[],beds=[];
 let db={patients:[],admissions:[],stays:[],audit:[]};
 let selectedDepartmentId=localStorage.getItem('bedflow.selectedDepartmentId')||null;
 let realtimeChannel=null,loading=false,scanner=null,currentPage='overview';
+let scannerMode='open',pendingTransferStayId=null,pendingSourceBedId=null,deepLinkHandled=false;
 
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -37,8 +38,39 @@ function roomById(id){return roomRecords.find(r=>r.uuid===id)}
 function bedById(id){return beds.find(b=>b.uuid===id)}
 function bedByCode(code){return beds.find(b=>b.code.toUpperCase()===String(code||'').trim().toUpperCase())}
 function bedByQR(value){
-  const raw=String(value||'').trim();
-  return beds.find(b=>String(b.qr).toUpperCase()===raw.toUpperCase()) || (/^BED:/i.test(raw)?bedByCode(raw.slice(4)):null);
+  let raw=String(value||'').trim();
+  if(!raw)return null;
+  try{
+    const u=new URL(raw);
+    const q=u.searchParams.get('bed');
+    if(q)raw=decodeURIComponent(q);
+  }catch(e){}
+  const exact=beds.find(b=>String(b.qr).toUpperCase()===raw.toUpperCase());
+  if(exact)return exact;
+  if(/^BED:/i.test(raw)){
+    const possibleCode=raw.slice(4).trim();
+    return bedByCode(possibleCode);
+  }
+  return bedByCode(raw);
+}
+function bedQrPayload(b){
+  const u=new URL(window.location.href);
+  u.search='';
+  u.hash='';
+  u.searchParams.set('bed',b.qr);
+  return u.toString();
+}
+function handleIncomingBedLink(){
+  if(deepLinkHandled)return;
+  const token=new URL(window.location.href).searchParams.get('bed');
+  if(!token)return;
+  const b=bedByQR(token);
+  if(!b)return;
+  deepLinkHandled=true;
+  selectedDepartmentId=b.departmentId||selectedDepartmentId;
+  if(selectedDepartmentId)localStorage.setItem('bedflow.selectedDepartmentId',selectedDepartmentId);
+  history.replaceState({},'',window.location.pathname);
+  setTimeout(()=>openBed(b.uuid,activeForBed(b.uuid).length?'view':'add'),80);
 }
 function admissionById(id){return db.admissions.find(a=>a.id===id)}
 function patientById(id){return db.patients.find(p=>p.id===id)}
@@ -84,6 +116,7 @@ async function loadRemote(showLoading=true){
     db.stays=(s.data||[]).map(x=>({id:x.id,admissionId:x.admission_id,bedId:x.bed_id,start:x.start_at,end:x.end_at,note:x.note||''}));
     db.audit=(log.data||[]).map(x=>({id:x.id,type:x.event_type,admissionId:x.admission_id,bedId:x.bed_id,payload:x.payload||{},at:x.created_at}));
     renderAll();
+    handleIncomingBedLink();
     if(realtimeChannel)setLive('SUBSCRIBED');
   }catch(e){
     console.error(e);setLive('CHANNEL_ERROR');toast('Không tải được dữ liệu: '+(e.message||e));
@@ -125,7 +158,7 @@ function renderOverview(){
       if(!acts.length)html+='<div class="muted" style="font-size:12px">Sẵn sàng tiếp nhận</div>';
       acts.forEach(s=>{
         const p=patientForAdmission(s.admissionId);
-        html+='<div class="patient-mini"><div style="min-width:0"><b>'+esc(p?.name||'BN')+'</b><small> · '+fmtTime(s.start)+'</small></div><div class="mini-actions"><button class="icon-btn" onclick="openBed(\''+b.uuid+'\',\'transfer\',\''+s.id+'\')">Chuyển</button><button class="icon-btn" onclick="openBed(\''+b.uuid+'\',\'end\',\''+s.id+'\')">Rời</button></div></div>';
+        html+='<div class="patient-mini"><div style="min-width:0"><b>'+esc(p?.name||'BN')+'</b><small> · '+fmtTime(s.start)+'</small></div><div class="mini-actions"><button class="icon-btn" onclick="startTransferScan(\''+s.id+'\',\''+b.uuid+'\')">Chuyển</button><button class="icon-btn" onclick="confirmEndNow(\''+s.id+'\',\''+b.uuid+'\')">Rời</button></div></div>';
       });
       html+='</div><div class="bed-actions"><button class="btn primary sm" onclick="openBed(\''+b.uuid+'\',\'add\')">+ BN</button><button class="btn sm" onclick="openBed(\''+b.uuid+'\',\'qr\')">QR</button></div></article>';
     });
@@ -233,98 +266,138 @@ function setPage(page){
   document.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',x.dataset.page===page));
   if(page==='beds')renderTimeline();if(page==='patients')renderPatients();if(page==='admin')renderAdmin();
 }
+
 window.openBed=function(bedId,mode='view',stayId=null){
   const b=bedById(bedId);if(!b)return;
   const acts=activeForBed(b.uuid),st=stateForBed(b);
   $('#bedTitle').textContent=b.roomCode+' – '+b.code;
   $('#bedSub').textContent=stateText(st)+' · '+b.roomName;
-  let html='<div class="notice"><b>Đang nằm: '+acts.length+' BN.</b> Ghép/hết ghép được hệ thống tự suy ra theo các khoảng thời gian, không nhập tỷ lệ thủ công.</div>';
+
+  let html='<div class="notice"><b>'+acts.length+' BN đang nằm.</b> Mọi thao tác của giường thực hiện ngay tại đây.</div>';
   if(acts.length){
     acts.forEach(s=>{
       const p=patientForAdmission(s.admissionId);
-      html+='<div class="current-patient"><div><b>'+esc(p?.name||'BN')+'</b><div class="sub">Từ '+fmtDateTime(s.start)+'</div></div><div class="actions"><button class="btn sm" onclick="openBed(\''+b.uuid+'\',\'transfer\',\''+s.id+'\')">Chuyển</button><button class="btn danger sm" onclick="openBed(\''+b.uuid+'\',\'end\',\''+s.id+'\')">Rời giường</button></div></div>';
+      html+='<div class="patient-action-row"><div><b>'+esc(p?.name||'BN')+'</b><div class="sub">Từ '+fmtTime(s.start)+' · '+fmtDate(s.start)+'</div></div>'+
+        '<button class="btn blue sm" onclick="startTransferScan(\''+s.id+'\',\''+b.uuid+'\')">📷 Chuyển</button>'+
+        '<button class="btn danger sm" onclick="confirmEndNow(\''+s.id+'\',\''+b.uuid+'\')">Rời</button></div>';
     });
-  }else html+='<div class="empty" style="padding:14px">Giường đang trống.</div>';
-  html+='<div style="display:flex;gap:8px;margin-top:12px"><button class="btn primary" onclick="openBed(\''+b.uuid+'\',\'add\')">+ Nhập BN</button><button class="btn" onclick="openBed(\''+b.uuid+'\',\'qr\')">QR giường</button></div>';
+  }else{
+    html+='<div class="empty" style="padding:13px">Giường đang trống.</div>';
+  }
+
+  html+='<div style="display:grid;grid-template-columns:1.4fr .8fr;gap:8px;margin-top:12px">'+
+    '<button class="btn primary action-big" onclick="openBed(\''+b.uuid+'\',\'add\')">+ NHẬP BN</button>'+
+    '<button class="btn action-big" onclick="openBed(\''+b.uuid+'\',\'qr\')">QR</button></div>';
+
   if(mode==='add')html+=addForm(b);
-  if(mode==='transfer')html+=transferForm(b,stayId);
-  if(mode==='end')html+=endForm(b,stayId);
+  if(mode==='endEdit')html+=endEditForm(b,stayId);
   if(mode==='qr')html+=qrForm(b);
+
   $('#bedBody').innerHTML=html;
   $('#bedDialog').showModal();
-  if(mode==='qr')setTimeout(()=>renderQr('#bedQr',b.qr,220),40);
-  if(mode==='transfer')setTimeout(()=>refreshTransferBeds(b,stayId),20);
+  if(mode==='qr')setTimeout(()=>renderQr('#bedQr',bedQrPayload(b),220),40);
+  if(mode==='add')setTimeout(()=>$('#quickName')?.focus(),70);
 };
+
 function addForm(b){
   const n=activeForBed(b.uuid).length,tm=localParts();
-  return '<div class="action-panel"><h4>+ Nhập bệnh nhân vào '+esc(b.code)+'</h4>'+
-    (n?'<div class="notice">Giường hiện có '+n+' BN. Thêm BN sẽ thành <b>ghép '+(n+1)+'</b>.</div>':'')+
-    '<div class="field"><label>Tên bệnh nhân</label><input id="quickName" autocomplete="off" placeholder="Nhập họ tên BN"/></div>'+
-    '<div class="field" style="margin-top:8px"><label>Giờ bắt đầu hôm nay ('+tm.date.split('-').reverse().join('/')+')</label><input id="quickTime" type="time" value="'+tm.time+'"/></div>'+
-    '<button class="btn primary" style="width:100%;margin-top:10px" onclick="submitQuickAdmit(\''+b.uuid+'\')">Xác nhận nhập BN</button></div>';
+  return '<div class="action-panel"><h4>Nhập BN vào '+esc(b.code)+'</h4>'+
+    (n?'<div class="notice">Đang có '+n+' BN. Thêm BN mới → hệ thống tự ghi nhận <b>ghép '+(n+1)+'</b>.</div>':'')+
+    '<div class="field"><label>Tên bệnh nhân</label><input id="quickName" autocomplete="off" placeholder="Nhập họ tên BN" style="font-size:17px;padding:13px"/></div>'+
+    '<div class="sub" style="margin-top:8px">Mặc định bắt đầu lúc <b>'+tm.time+'</b> hôm nay.</div>'+
+    '<details class="optional"><summary>Sửa giờ nếu nhập hồi cứu</summary><div class="field" style="margin-top:7px"><input id="quickTime" type="time" value="'+tm.time+'"/></div></details>'+
+    '<button class="btn primary action-big" style="margin-top:11px" onclick="submitQuickAdmit(\''+b.uuid+'\')">XÁC NHẬN NHẬP BN</button></div>';
 }
 window.submitQuickAdmit=async function(bedId){
-  const name=$('#quickName')?.value.trim(),time=$('#quickTime')?.value,day=localParts().date;
-  if(!name||!time){alert('Nhập tên bệnh nhân và giờ/phút.');return}
+  const name=$('#quickName')?.value.trim();
+  const tm=localParts(),time=$('#quickTime')?.value||tm.time,day=tm.date;
+  if(!name){alert('Nhập tên bệnh nhân.');return}
   const b=bedById(bedId),n=activeForBed(bedId).length;
-  if(n&&!confirm('Giường '+b.code+' đang có '+n+' BN. Thêm BN này sẽ tạo trạng thái ghép. Tiếp tục?'))return;
+  if(n&&!confirm('Giường '+b.code+' đang có '+n+' BN. Thêm '+name+' sẽ tạo trạng thái ghép. Xác nhận?'))return;
   const {error}=await sb.rpc('quick_admit_to_bed',{p_full_name:name,p_bed_id:bedId,p_start_at:isoAt(day,time)});
   if(error){alert('Không thể nhập BN: '+error.message);return}
-  toast('Đã nhập '+name+' vào '+b.code);await loadRemote(false);openBed(bedId,'view');
+  toast('Đã nhập '+name+' vào '+b.code);
+  await loadRemote(false);
+  openBed(bedId,'view');
 };
-function transferForm(b,stayId){
-  const s=db.stays.find(x=>x.id===stayId);if(!s)return '';
-  const p=patientForAdmission(s.admissionId),tm=localParts();
-  const rooms=departmentRooms().map(r=>'<option value="'+r.uuid+'"'+(r.uuid===b.roomUuid?' selected':'')+'>'+esc(r.code)+' · '+esc(r.name)+'</option>').join('');
-  return '<div class="action-panel"><h4>Chuyển '+esc(p?.name||'BN')+'</h4><div class="sub" style="margin-bottom:8px">Từ '+esc(b.roomCode+' – '+b.code)+'</div>'+
-    '<div class="form-row"><div class="field"><label>Phòng đến</label><select id="transferRoom" onchange="refreshTransferBedsById(\''+b.uuid+'\',\''+stayId+'\')">'+rooms+'</select></div><div class="field"><label>Giường đến</label><select id="transferBed"></select></div></div>'+
-    '<div class="field"><label>Thời điểm chuyển hôm nay</label><input id="transferTime" type="time" value="'+tm.time+'"/></div>'+
-    '<button class="btn blue" style="width:100%;margin-top:10px" onclick="submitTransfer(\''+stayId+'\')">Xác nhận chuyển giường / phòng</button></div>';
+
+window.startTransferScan=async function(stayId,sourceBedId){
+  pendingTransferStayId=stayId;
+  pendingSourceBedId=sourceBedId;
+  if($('#bedDialog').open)$('#bedDialog').close();
+  await startScanner('transfer',stayId,sourceBedId);
+};
+
+function showTransferConfirm(stayId,destinationBedId){
+  const s=db.stays.find(x=>x.id===stayId);if(!s)return;
+  const src=bedById(s.bedId),dst=bedById(destinationBedId),p=patientForAdmission(s.admissionId);
+  if(!dst||!src)return;
+  if(src.uuid===dst.uuid){toast('Đây chính là giường hiện tại');return}
+  const n=activeForBed(dst.uuid).length,tm=localParts();
+  $('#bedTitle').textContent='Chuyển '+(p?.name||'BN');
+  $('#bedSub').textContent=src.roomCode+' – '+src.code+' → '+dst.roomCode+' – '+dst.code;
+  $('#bedBody').innerHTML=
+    '<div class="scan-destination"><b>QR đích: '+esc(dst.roomCode+' – '+dst.code)+'</b><div style="margin-top:4px">'+(n?('Giường đang có '+n+' BN → sau chuyển sẽ thành ghép '+(n+1)):'Giường đang trống')+'</div></div>'+
+    '<div class="sub">Mặc định chuyển lúc <b>'+tm.time+'</b> hôm nay.</div>'+
+    '<details class="optional"><summary>Sửa giờ nếu cần</summary><div class="field" style="margin-top:7px"><input id="transferTime" type="time" value="'+tm.time+'"/></div></details>'+
+    '<button class="btn blue action-big" style="margin-top:12px" onclick="confirmScannedTransfer(\''+stayId+'\',\''+dst.uuid+'\')">XÁC NHẬN CHUYỂN</button>'+
+    '<button class="btn action-big" style="margin-top:7px" onclick="startTransferScan(\''+stayId+'\',\''+src.uuid+'\')">📷 Quét lại QR đích</button>';
+  $('#bedDialog').showModal();
 }
-window.refreshTransferBedsById=function(fromBedId,stayId){refreshTransferBeds(bedById(fromBedId),stayId)}
-function refreshTransferBeds(fromBed,stayId){
-  const sel=$('#transferRoom'),dst=$('#transferBed');if(!sel||!dst)return;
-  const roomId=sel.value||departmentRooms()[0]?.uuid;if(roomId)sel.value=roomId;
-  const options=beds.filter(x=>x.active&&x.roomUuid===roomId&&x.uuid!==fromBed.uuid).map(x=>{
-    const n=activeForBed(x.uuid).length;return '<option value="'+x.uuid+'">'+esc(x.code)+' · '+(n?n+' BN':'TRỐNG')+'</option>';
-  }).join('');
-  dst.innerHTML=options||'<option value="">Không có giường phù hợp</option>';
-}
-window.submitTransfer=async function(stayId){
-  const dst=$('#transferBed')?.value,time=$('#transferTime')?.value,day=localParts().date;
-  if(!dst||!time){alert('Chọn giường đến và thời điểm chuyển.');return}
-  const b=bedById(dst),n=activeForBed(dst).length;
-  if(n&&!confirm(b.code+' đang có '+n+' BN. Chuyển vào sẽ tạo trạng thái ghép. Tiếp tục?'))return;
-  const {error}=await sb.rpc('transfer_bed',{p_stay_id:stayId,p_new_bed_id:dst,p_at:isoAt(day,time)});
+window.confirmScannedTransfer=async function(stayId,destinationBedId){
+  const tm=localParts(),time=$('#transferTime')?.value||tm.time,day=tm.date;
+  const dst=bedById(destinationBedId),n=activeForBed(destinationBedId).length;
+  if(n&&!confirm(dst.code+' đang có '+n+' BN. Chuyển vào sẽ tạo nằm ghép. Tiếp tục?'))return;
+  const {error}=await sb.rpc('transfer_bed',{p_stay_id:stayId,p_new_bed_id:destinationBedId,p_at:isoAt(day,time)});
   if(error){alert('Không thể chuyển: '+error.message);return}
-  toast('Đã chuyển giường');await loadRemote(false);openBed(dst,'view');
+  pendingTransferStayId=null;pendingSourceBedId=null;
+  toast('Đã chuyển sang '+dst.code);
+  await loadRemote(false);
+  openBed(destinationBedId,'view');
 };
-function endForm(b,stayId){
+
+window.confirmEndNow=async function(stayId,bedId){
+  const s=db.stays.find(x=>x.id===stayId);if(!s)return;
+  const p=patientForAdmission(s.admissionId),b=bedById(bedId),tm=localParts();
+  if(!confirm('Cho '+(p?.name||'BN')+' rời '+b.code+' lúc '+tm.time+'?'))return;
+  const {error}=await sb.rpc('end_bed_stay',{p_stay_id:stayId,p_end_at:nowISO()});
+  if(error){alert('Không thể kết thúc: '+error.message);return}
+  toast('Đã ghi nhận rời '+b.code);
+  await loadRemote(false);
+  openBed(bedId,'view');
+};
+function endEditForm(b,stayId){
   const s=db.stays.find(x=>x.id===stayId);if(!s)return '';
   const p=patientForAdmission(s.admissionId),tm=localParts();
-  return '<div class="action-panel"><h4>Rời '+esc(b.code)+'</h4><div class="notice"><b>'+esc(p?.name||'BN')+'</b> sẽ kết thúc sử dụng giường này. Lịch sử không bị xóa.</div>'+
-    '<div class="field"><label>Thời điểm rời giường hôm nay</label><input id="endTime" type="time" value="'+tm.time+'"/></div>'+
-    '<button class="btn danger" style="width:100%;margin-top:10px" onclick="submitEnd(\''+stayId+'\',\''+b.uuid+'\')">Xác nhận rời giường</button></div>';
+  return '<div class="action-panel"><h4>Sửa thời điểm rời giường</h4><div class="notice"><b>'+esc(p?.name||'BN')+'</b></div>'+
+    '<div class="field"><input id="endTime" type="time" value="'+tm.time+'"/></div>'+
+    '<button class="btn danger action-big" style="margin-top:10px" onclick="submitEndEdited(\''+stayId+'\',\''+b.uuid+'\')">Xác nhận</button></div>';
 }
-window.submitEnd=async function(stayId,bedId){
-  const time=$('#endTime')?.value,day=localParts().date;if(!time)return;
-  if(!confirm('Xác nhận kết thúc lượt sử dụng giường tại '+time+'?'))return;
-  const {error}=await sb.rpc('end_bed_stay',{p_stay_id:stayId,p_end_at:isoAt(day,time)});
+window.submitEndEdited=async function(stayId,bedId){
+  const tm=localParts(),time=$('#endTime')?.value||tm.time;
+  const {error}=await sb.rpc('end_bed_stay',{p_stay_id:stayId,p_end_at:isoAt(tm.date,time)});
   if(error){alert('Không thể kết thúc: '+error.message);return}
   toast('Đã ghi nhận rời giường');await loadRemote(false);openBed(bedId,'view');
 };
+
 function qrForm(b){
   const d=departments.find(x=>x.uuid===b.departmentId);
-  return '<div class="action-panel" style="text-align:center"><h4>QR định danh giường</h4><div style="font-size:22px;font-weight:950">'+esc(b.code)+'</div><div class="sub">'+esc(d?.name||'')+' · '+esc(b.roomCode)+'</div><div id="bedQr" class="qrbox"></div><div class="sub">QR gắn với UUID vật lý; đổi mã giường không làm đổi QR.</div><button class="btn primary" style="margin-top:10px" onclick="downloadBedQR(\''+b.uuid+'\')">Tải QR PNG</button></div>';
+  return '<div class="action-panel" style="text-align:center"><h4>QR thao tác trực tiếp</h4>'+
+    '<div style="font-size:24px;font-weight:950">'+esc(b.code)+'</div><div class="sub">'+esc(d?.name||'')+' · '+esc(b.roomCode)+'</div>'+
+    '<div id="bedQr" class="qrbox"></div>'+
+    '<div class="notice">Quét bằng <b>camera thường của điện thoại</b> sẽ mở thẳng module '+esc(b.code)+'. QR không chứa thông tin BN.</div>'+
+    '<button class="btn primary action-big" onclick="downloadBedQR(\''+b.uuid+'\')">Tải QR PNG</button></div>';
 }
 function renderQr(selector,text,size){
   const q=document.querySelector(selector);if(!q||!window.QRCode)return;q.innerHTML='';
   new QRCode(q,{text:text,width:size,height:size,colorDark:'#0f172a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
 }
 window.downloadBedQR=function(id){
-  const b=bedById(id);if(!b)return;const h=document.createElement('div');h.style='position:fixed;left:-9999px';document.body.appendChild(h);
-  new QRCode(h,{text:b.qr,width:512,height:512,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
-  setTimeout(()=>{const c=h.querySelector('canvas'),im=h.querySelector('img'),url=c?c.toDataURL('image/png'):im?.src;if(url){const a=document.createElement('a');a.href=url;a.download='QR_'+b.code+'.png';a.click()}h.remove()},100);
+  const b=bedById(id);if(!b)return;
+  const h=document.createElement('div');h.style='position:fixed;left:-9999px';document.body.appendChild(h);
+  new QRCode(h,{text:bedQrPayload(b),width:512,height:512,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+  setTimeout(()=>{const cv=h.querySelector('canvas'),im=h.querySelector('img'),url=cv?cv.toDataURL('image/png'):im?.src;
+    if(url){const a=document.createElement('a');a.href=url;a.download='QR_'+b.code+'.png';a.click()}h.remove()},100);
 };
 
 window.openPatient=function(admissionId){
@@ -372,23 +445,47 @@ window.activateBed=async function(id){
   const b=bedById(id);if(!b)return;const {error}=await sb.rpc('update_bed',{p_bed_id:id,p_room_id:b.roomUuid,p_code:b.code,p_max_occupancy:b.max,p_is_active:true});if(error){alert(error.message);return}toast('Đã kích hoạt giường');await loadRemote(false);
 };
 
-async function startScanner(){
+
+async function startScanner(mode='open',stayId=null,sourceBedId=null){
+  scannerMode=mode;
+  pendingTransferStayId=stayId;
+  pendingSourceBedId=sourceBedId;
+  $('#scanTitle').textContent=mode==='transfer'?'Quét QR GIƯỜNG ĐÍCH':'Quét QR giường';
+  $('#scanPurposeText').textContent=mode==='transfer'
+    ?'Đưa camera vào QR của giường muốn chuyển BN đến.'
+    :'Quét QR đầu giường để mở ngay mọi thao tác.';
   $('#scanDialog').showModal();
   if(!window.Html5Qrcode){toast('Không tải được trình quét QR');return}
   try{
     scanner=new Html5Qrcode('reader');
-    await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:240}},text=>{
-      const b=bedByQR(text);if(b){closeScanner();openBed(b.uuid,'add')}
+    await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:250}},async text=>{
+      const b=bedByQR(text);
+      if(!b)return;
+      await closeScanner();
+      handleScannedBed(b);
     },()=>{});
-  }catch(e){console.warn(e);toast('Không mở được camera. Có thể nhập mã giường thủ công.')}
+  }catch(e){console.warn(e);toast('Không mở được camera. Dùng ô nhập mã giường bên dưới.')}
+}
+function handleScannedBed(b){
+  if(scannerMode==='transfer'&&pendingTransferStayId){
+    const stayId=pendingTransferStayId;
+    const sourceId=pendingSourceBedId;
+    if(b.uuid===sourceId){toast('Hãy quét một giường khác');return startScanner('transfer',stayId,sourceId)}
+    showTransferConfirm(stayId,b.uuid);
+    return;
+  }
+  selectedDepartmentId=b.departmentId||selectedDepartmentId;
+  if(selectedDepartmentId)localStorage.setItem('bedflow.selectedDepartmentId',selectedDepartmentId);
+  openBed(b.uuid,activeForBed(b.uuid).length?'view':'add');
 }
 window.closeScanner=async function(){
   try{if(scanner){await scanner.stop();await scanner.clear();scanner=null}}catch(e){}
   if($('#scanDialog').open)$('#scanDialog').close();
 }
+
 function setupRealtime(){
   if(realtimeChannel)return;
-  realtimeChannel=sb.channel('bedflow-v05')
+  realtimeChannel=sb.channel('bedflow-v06')
     .on('postgres_changes',{event:'*',schema:'public',table:'departments'},()=>loadRemote(false))
     .on('postgres_changes',{event:'*',schema:'public',table:'rooms'},()=>loadRemote(false))
     .on('postgres_changes',{event:'*',schema:'public',table:'beds'},()=>loadRemote(false))
@@ -400,15 +497,24 @@ function setupRealtime(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  const lp=localParts();const seven=new Date(Date.now()-6*86400000);
+  const lp=localParts(),seven=new Date(Date.now()-6*86400000);
   $('#timelineFrom').value=localParts(seven).date;$('#timelineTo').value=lp.date;
   document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>setPage(x.dataset.page)));
   $('#departmentSelect').addEventListener('change',e=>{selectedDepartmentId=e.target.value;localStorage.setItem('bedflow.selectedDepartmentId',selectedDepartmentId);renderAll()});
-  $('#overviewSearch').addEventListener('input',renderOverview);$('#overviewFilter').addEventListener('change',renderOverview);
+  $('#overviewSearch')?.addEventListener('input',renderOverview);
+  $('#overviewFilter')?.addEventListener('change',renderOverview);
   $('#patientSearch').addEventListener('input',renderPatients);$('#patientFilter').addEventListener('change',renderPatients);
   $('#timelineApply').addEventListener('click',renderTimeline);$('#timelineRoom').addEventListener('change',renderTimeline);
   $('#reloadBtn').addEventListener('click',()=>loadRemote(true));
-  $('#scanBtn').addEventListener('click',startScanner);$('#scanBtnSide').addEventListener('click',startScanner);
-  $('#manualOpen').addEventListener('click',()=>{const b=bedByCode($('#manualBed').value);if(!b){alert('Không tìm thấy giường.');return}closeScanner();openBed(b.uuid,'add')});
-  setupRealtime();loadRemote(true);
+
+  ['#scanBtn','#scanBtnSide','#scanHeroBtn','#scanFab'].forEach(sel=>$(sel)?.addEventListener('click',()=>startScanner('open')));
+  $('#manualOpen').addEventListener('click',async()=>{
+    const b=bedByCode($('#manualBed').value);
+    if(!b){alert('Không tìm thấy giường.');return}
+    await closeScanner();
+    handleScannedBed(b);
+  });
+
+  setupRealtime();
+  loadRemote(true);
 });
