@@ -2,20 +2,30 @@
 
 Demo quản lý giường nội trú theo timeline, QR, realtime đa thiết bị và quản trị danh mục Phòng/Giường.
 
-## Live demo
-https://bqfphelckjvrwxdvekkl.supabase.co/functions/v1/giuong
+## Hosting
+Frontend production: Vercel (GitHub auto-deploy từ `main`).
+Backend/realtime: Supabase.
 
 ## Source
 https://github.com/tranhoadtp/datgio3
 
-## BVCL BedFlow v0.4
+## BVCL BedFlow v0.6
 - Frontend: HTML/CSS/JavaScript responsive, mobile-first.
 - Host production: Vercel từ GitHub.
 - Database: Supabase PostgreSQL.
 - Realtime: Supabase Realtime / Postgres Changes.
-- QR: token ổn định gắn với UUID giường vật lý.
+- QR: deep-link mở thẳng giường trên production web; token vật lý vẫn ổn định theo UUID.
 - Giao dịch nghiệp vụ: PostgreSQL RPC.
 - Audit: bảng audit_logs.
+
+## Workflow QR-first v0.6
+- Camera điện thoại quét QR mới → mở thẳng đúng module giường.
+- Module giường hiển thị ngay các BN đang nằm.
+- Nhập BN: chỉ tên BN; thời gian mặc định là hiện tại, chỉnh giờ là tùy chọn.
+- Chuyển BN: bấm Chuyển → quét QR giường đích → xác nhận.
+- Rời giường: bấm Rời → xác nhận theo giờ hiện tại.
+- Nằm ghép/hết ghép tự suy ra từ overlap timeline.
+- QR cũ dạng token vẫn dùng được trong scanner nội bộ; QR deep-link mới cần in lại để camera thường mở web trực tiếp.
 
 ## Nghiệp vụ hiện có
 - 1 khoa demo, 4 phòng, 20 giường, 25 BN giả.
